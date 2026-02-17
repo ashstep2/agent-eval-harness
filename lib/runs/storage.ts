@@ -11,11 +11,15 @@ function ensureDir() {
   }
 }
 
-/** Save an evaluation run to disk as JSON. */
+/** Save an evaluation run to disk as JSON. Fails gracefully on read-only filesystems (e.g. Vercel). */
 export function saveRun(run: AgentEvaluationResults): void {
-  ensureDir();
-  const filePath = path.join(RUNS_DIR, `${run.id}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(run, null, 2));
+  try {
+    ensureDir();
+    const filePath = path.join(RUNS_DIR, `${run.id}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(run, null, 2));
+  } catch {
+    // Read-only filesystem (Vercel deploys). Run still completes; it just won't persist.
+  }
 }
 
 /** Load all saved runs, sorted newest first. */
