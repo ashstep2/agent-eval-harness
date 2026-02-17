@@ -71,7 +71,7 @@ export default function RootLayout({
                   GitHub
                 </a>
                 <a
-                  href="https://github.com/ashstep2/agent-eval-harness/blob/main/PRODUCT_STRATEGY.md"
+                  href="https://github.com/ashstep2/agent-eval-harness/blob/master/PRODUCT_STRATEGY.md"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-gray-400 transition-colors hover:text-black"

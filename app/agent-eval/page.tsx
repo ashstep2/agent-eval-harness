@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TaskCard } from '@/components/agent-eval/task-card';
 import { TaskStats } from '@/components/agent-eval/task-stats';
@@ -11,6 +11,7 @@ import { getModelDisplayName } from '@/lib/data/models';
 export default function AgentEvalDashboard() {
   const router = useRouter();
   const { setTask, recentEvaluations, loadRuns } = useAgentEvalStore();
+  const [showRecent, setShowRecent] = useState(false);
 
   useEffect(() => { loadRuns(); }, [loadRuns]);
 
@@ -34,55 +35,61 @@ export default function AgentEvalDashboard() {
         <TaskStats totalTasks={AGENT_TASKS.length} recentRuns={recentEvaluations} />
       </div>
 
-      {/* Recent Evaluations */}
+      {/* Recent Evaluations (collapsible) */}
       <section className="mb-16">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-400">
-          Recent evaluations
-        </h2>
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Task</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Models</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Preset</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Winner</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Score</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {recentEvaluations.map((run) => (
-                <tr
-                  key={run.id}
-                  className="cursor-pointer transition-colors hover:bg-gray-50"
-                  onClick={() => router.push(`/agent-eval/results?runId=${run.id}`)}
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-black">
-                    {run.taskTitle}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {run.models.map(getModelDisplayName).join(' vs ')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">
-                      {run.weightPreset.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-black">
-                    {getModelDisplayName(run.winner)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-sm text-gray-600">
-                    {run.winnerScore.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-xs text-blue-600">
-                    View →
-                  </td>
+        <button
+          onClick={() => setShowRecent((prev) => !prev)}
+          className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-gray-400 transition-colors hover:text-gray-600"
+        >
+          <span className={`inline-block transition-transform ${showRecent ? 'rotate-90' : ''}`}>▶</span>
+          See recent evaluation results
+        </button>
+        {showRecent && (
+          <div className="mt-4 overflow-hidden rounded-lg border border-gray-200">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Task</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Models</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Preset</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Winner</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Score</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentEvaluations.map((run) => (
+                  <tr
+                    key={run.id}
+                    className="cursor-pointer transition-colors hover:bg-gray-50"
+                    onClick={() => router.push(`/agent-eval/results?runId=${run.id}`)}
+                  >
+                    <td className="px-4 py-3 text-sm font-medium text-black">
+                      {run.taskTitle}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {run.models.map(getModelDisplayName).join(' vs ')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">
+                        {run.weightPreset.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-black">
+                      {getModelDisplayName(run.winner)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm text-gray-600">
+                      {run.winnerScore.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-blue-600">
+                      View →
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* Task Library */}

@@ -1,6 +1,6 @@
 # Coding Agent Evaluation Harness
 
-![Dashboard](images/dashboard.png)
+![Dashboard](images/dash.png)
 
 An evaluation tool for coding agents. Compares GPT-5.3 Codex and Claude Opus 4.6 on 10 real coding tasks across 6 dimensions that predict whether developers will delegate to a coding agent. Run evals yourself, see streaming results, and explore the findings.
 
