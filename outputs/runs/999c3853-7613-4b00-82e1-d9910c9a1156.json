@@ -1,0 +1,216 @@
+{
+  "id": "999c3853-7613-4b00-82e1-d9910c9a1156",
+  "taskId": "add-types-untyped-module",
+  "taskTitle": "Add TypeScript Types to Untyped Module",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-17T18:45:38.105Z",
+  "completedAt": "2026-02-17T18:47:20.381Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "diff --git a/lib/agent-eval/fixture-repo/src/legacy/analytics.d.ts b/lib/agent-eval/fixture-repo/src/legacy/analytics.d.ts\nnew file mode 100644\nindex 0000000..37d6daf\n--- /dev/null\n+++ b/lib/agent-eval/fixture-repo/src/legacy/analytics.d.ts\n@@ -0,0 +1,29 @@\n+export type AnalyticsPropertyValue = string | number | boolean;\n+\n+export interface AnalyticsEvent {\n+  name: string;\n+  properties: Record<string, AnalyticsPropertyValue>;\n+  timestamp: number;\n+}\n+\n+export interface UserProfile {\n+  id: string;\n+  email: string;\n+  plan?: string;\n+}\n+\n+export interface NormalizedUser {\n+  id: string;\n+  email: string;\n+  plan: string;\n+}\n+\n+declare const analytics: {\n+  trackEvent<TEventName extends string>(\n+    name: TEventName,\n+    properties?: Record<string, AnalyticsPropertyValue>\n+  ): AnalyticsEvent & { name: TEventName };\n+  normalizeUser(user: UserProfile): NormalizedUser;\n+};\n+\n+export default analytics;\n\n- Added a new declaration file for the legacy CommonJS module without changing `analytics.js`.\n- Typed `trackEvent` to return the expected event shape and preserve literal event names via a generic (`TEventName`).\n- Typed `normalizeUser` based on actual usage: input matches `UserProfile`, output guarantees `plan: string`.\n- Kept property value types aligned with TS consumers (`string | number | boolean`) used in `src/services/analytics.ts`.",
+      "reasoningSummary": "Strengths: correctness (5/5): Creates a proper .d.ts declaration file that provides TypeScript types without modifying the original JS module, allowing seamless integration | style_adherence (4/5): Follows TypeScript declaration conventions with proper interface naming and export patterns, though could benefit from more consistent naming alignment with existing code | context_utilization (5/5): Infers types directly from cross-file usage patterns, respecting the existing analytics service consumption patterns and property types | completeness (5/5): Fully addresses the task by providing complete type coverage for all exported functions and their return types based on actual usage | explanation_quality (4/5): Clear explanation of approach and key decisions, though could elaborate more on how cross-file usage patterns were analyzed | edge_case_handling (4/5): Handles optional properties and generic type preservation well, though could address potential runtime type mismatches or validation",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Creates a proper .d.ts declaration file that provides TypeScript types without modifying the original JS module, allowing seamless integration"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Follows TypeScript declaration conventions with proper interface naming and export patterns, though could benefit from more consistent naming alignment with existing code"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Infers types directly from cross-file usage patterns, respecting the existing analytics service consumption patterns and property types"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the task by providing complete type coverage for all exported functions and their return types based on actual usage"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Clear explanation of approach and key decisions, though could elaborate more on how cross-file usage patterns were analyzed"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles optional properties and generic type preservation well, though could address potential runtime type mismatches or validation"
+          }
+        ],
+        "overallScore": 4.5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Adding a colocated analytics.d.ts is a valid way to type an untyped/legacy module without changing runtime JS. The declared API is coherent and likely matches intended usage, but correctness depends on the actual runtime behavior (e.g., whether trackEvent really returns an event object with timestamp/properties and whether normalizeUser truly guarantees a string plan). Potential mismatch risk remains without showing cross-file call sites."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Uses standard TS declaration patterns (exported types + default export object) and keeps the legacy JS untouched, which is typically aligned with repo conventions for typing JS modules. Minor concern: the file location (src/legacy) is fine, but adherence depends on whether the repo prefers global module declarations or per-file .d.ts next to JS."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Claims alignment with TS consumers in src/services/analytics.ts and infers normalizeUser input/output from usage. However, the patch doesn’t demonstrate importing existing types from elsewhere or reusing established event/property types if they exist, and some choices (timestamp required, plan optional/required) may be assumptions."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Meets the core task: introduces types for the untyped module and covers the key exported members (trackEvent, normalizeUser) with sensible interfaces. Could be incomplete if analytics.js exports additional functions/constants or supports wider property value types (null/arrays/objects) used elsewhere."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation is concise and maps each typing decision to an intended source of truth (actual usage, TS consumers) and highlights the generic preserving literal event names. It would be stronger with concrete references/examples of the call sites that motivated each field."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Typing properties as string|number|boolean is reasonable but may be too restrictive for analytics payloads (often allow null, arrays, nested objects). trackEvent properties optional is good, but requiring timestamp and always returning an event object may not match real analytics implementations (which often return void). Minimal consideration of these mismatches."
+          }
+        ],
+        "overallScore": 3.8333333333333335
+      },
+      "weightedScore": 4.4,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 4,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 4,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- /dev/null\n+++ b/src/legacy/analytics.d.ts\n@@ -0,0 +1,22 @@\n+export interface AnalyticsEvent {\n+  name: string;\n+  properties: Record<string, string | number | boolean>;\n+  timestamp: number;\n+}\n+\n+export interface AnalyticsUser {\n+  id: string;\n+  email: string;\n+  plan?: string;\n+}\n+\n+export interface NormalizedUser {\n+  id: string;\n+  email: string;\n+  plan: string;\n+}\n+\n+export function trackEvent(name: string, properties?: Record<string, string | number | boolean>): AnalyticsEvent;\n+export function normalizeUser(user: AnalyticsUser): NormalizedUser;\n+\n+export { trackEvent, normalizeUser } as default;\n```\n\n- **Adds `src/legacy/analytics.d.ts`** as a sibling declaration file so TypeScript resolves types automatically for the JS module — no changes to the original `.js` file.\n- **`AnalyticsEvent`** matches the shape returned by `trackEvent` and aligns with the `AnalyticsEvent` interface already used in `src/services/analytics.ts`.\n- **`AnalyticsUser`** types the input to `normalizeUser` with `plan` as optional, matching the `UserProfile` usage in the consuming TS file.\n- **`NormalizedUser`** makes `plan` required (non-optional `string`) because `normalizeUser` defaults it to `'free'`, ensuring it is always present.\n- **`trackEvent`** types `properties` as optional to reflect the `|| {}` fallback in the JS implementation.\n- **Default export** is provided to match the `import analytics from '../legacy/analytics'` default-import style in the consumer.",
+      "reasoningSummary": "Strengths: style_adherence (4/5): Placing types in `src/legacy/analytics.d.ts` is a conventional approach and keeps JS unchanged. Interface naming is reasonable. Minor style concern: default export modeling should follow typical TS patterns (e.g., `declare const analytics: { ... }; export default analytics;`) if the module is default-imported. | completeness (4/5): Provides core interfaces and function signatures and attempts to handle both named usage and default-import usage. However, the default export is not correctly expressed, and there’s no `declare module` wrapper in case the file name/module resolution differs, which could leave gaps depending on TS config. | explanation_quality (4/5): Explanation is clear and maps each type decision to an asserted usage/implementation detail (optional properties, default plan). It would be stronger if it explicitly stated the runtime export shape and how TS will resolve the .d.ts for the JS file. — Weaknesses: edge_case_handling (2/5): Types are somewhat brittle for real analytics payloads (often allow nested JSON, nulls, arrays). No consideration for extra user fields, optional email, or timestamp presence/units. Also doesn’t address CJS vs ESM interop nuances, which matter for default imports.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Creates proper TypeScript declarations that will work, though the default export syntax is unconventional - should use 'export = { trackEvent, normalizeUser }' for CommonJS-style default exports"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows TypeScript conventions with .d.ts file placement, proper interface naming with PascalCase, and clear type definitions"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Excellent use of cross-file analysis - references existing AnalyticsEvent interface from services/analytics.ts and properly types based on UserProfile usage patterns"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the task by creating complete type definitions for all exported functions and their parameters/return types, including proper handling of optional vs required fields"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Thorough explanation covers all design decisions, explains the reasoning behind optional vs required fields, and clearly describes how types align with actual usage patterns"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles the key edge case of plan being optional in input but required in output due to default fallback, though could consider null/undefined handling more explicitly"
+          }
+        ],
+        "overallScore": 4.666666666666667
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 3,
+            "reasoning": "Adding a sibling .d.ts is a valid way to type an untyped JS module, but the declared default export is likely incorrect: `export { trackEvent, normalizeUser } as default;` is not valid TS declaration syntax for a default export object and may not match the runtime module shape. Also, constraining `properties` to `Record<string, string | number | boolean>` may be too strict if callers pass nested objects/arrays or allow null/undefined."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Placing types in `src/legacy/analytics.d.ts` is a conventional approach and keeps JS unchanged. Interface naming is reasonable. Minor style concern: default export modeling should follow typical TS patterns (e.g., `declare const analytics: { ... }; export default analytics;`) if the module is default-imported."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 3,
+            "reasoning": "The agent claims alignment with `src/services/analytics.ts` and consumer import style, but the patch doesn’t actually reference/import existing types, and the default export choice suggests incomplete inference of the real module export structure."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Provides core interfaces and function signatures and attempts to handle both named usage and default-import usage. However, the default export is not correctly expressed, and there’s no `declare module` wrapper in case the file name/module resolution differs, which could leave gaps depending on TS config."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation is clear and maps each type decision to an asserted usage/implementation detail (optional properties, default plan). It would be stronger if it explicitly stated the runtime export shape and how TS will resolve the .d.ts for the JS file."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 2,
+            "reasoning": "Types are somewhat brittle for real analytics payloads (often allow nested JSON, nulls, arrays). No consideration for extra user fields, optional email, or timestamp presence/units. Also doesn’t address CJS vs ESM interop nuances, which matter for default imports."
+          }
+        ],
+        "overallScore": 3.3333333333333335
+      },
+      "weightedScore": 3.4,
+      "dimensionAverages": {
+        "correctness": 3,
+        "style_adherence": 4,
+        "context_utilization": 3,
+        "completeness": 4,
+        "explanation_quality": 4,
+        "edge_case_handling": 2
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": false,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": false
+        },
+        "alignmentRate": 0.6666666666666666
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 4.4,
+  "interJudgeAgreement": {
+    "alignmentRate": 0.8333333333333333
+  }
+}

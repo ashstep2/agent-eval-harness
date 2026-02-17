@@ -1,0 +1,216 @@
+{
+  "id": "3c6501c0-9b6f-4562-afd6-eec860f44683",
+  "taskId": "debug-websocket-memory-leak",
+  "taskTitle": "Debug Memory Leak in WebSocket Handler",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-17T18:50:16.067Z",
+  "completedAt": "2026-02-17T18:52:15.049Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "```diff\ndiff --git a/lib/agent-eval/fixture-repo/src/websocket/handler.ts b/lib/agent-eval/fixture-repo/src/websocket/handler.ts\nindex e6e7387..f8ca194 100644\n--- a/lib/agent-eval/fixture-repo/src/websocket/handler.ts\n+++ b/lib/agent-eval/fixture-repo/src/websocket/handler.ts\n@@ -10,8 +10,11 @@ export interface WebSocketLike {\n }\n \n const events = new EventEmitter();\n+const socketCleanups = new WeakMap<WebSocketLike, () => void>();\n \n export function registerSocket(socket: WebSocketLike) {\n+  socketCleanups.get(socket)?.();\n+\n   const onMessage: SocketListener = (data) => {\n     events.emit('message', data);\n   };\n@@ -34,6 +37,10 @@ export function registerSocket(socket: WebSocketLike) {\n     socket.off?.('close', onClose);\n     socket.removeListener?.('message', onMessage);\n     socket.removeListener?.('close', onClose);\n+\n+    if (socketCleanups.get(socket) === cleanup) {\n+      socketCleanups.delete(socket);\n+    }\n     events.off('broadcast', onBroadcast);\n   };\n \n@@ -45,6 +52,7 @@ export function registerSocket(socket: WebSocketLike) {\n   socket.on('message', onMessage);\n   socket.on('close', onClose);\n   events.on('broadcast', onBroadcast);\n+  socketCleanups.set(socket, cleanup);\n \n   return cleanup;\n }\n```\n\n- Root cause: repeated `registerSocket(socket)` calls for the same socket stacked new listeners each time, so listeners could grow unbounded before `close`.\n- Fix: added a `WeakMap` of per-socket cleanup callbacks and run existing cleanup before re-registering.\n- Fix: cleanup now also deletes its own `WeakMap` entry to avoid stale references.\n- Result: listener count stays bounded per socket lifecycle, and re-registration no longer leaks handlers.",
+      "reasoningSummary": "Strengths: correctness (5/5): The solution correctly identifies and fixes the memory leak by preventing duplicate listeners through cleanup before re-registration. The WeakMap approach is robust and handles the core issue. | style_adherence (5/5): Code follows existing patterns with proper TypeScript typing, consistent naming conventions (socketCleanups), and maintains the same code structure and formatting as the original. | context_utilization (5/5): Leverages existing WebSocketLike interface, uses the established cleanup pattern, and integrates seamlessly with the existing EventEmitter and socket handling architecture. | completeness (5/5): Fully addresses the memory leak issue by handling both the duplicate listener problem and proper cleanup. Covers all scenarios including re-registration and proper WeakMap entry management. | explanation_quality (5/5): Clear, concise explanation that identifies root cause (repeated registerSocket calls), describes the fix (WeakMap cleanup tracking), and explains the result. Easy to verify and understand. | edge_case_handling (4/5): Handles the main edge cases well (re-registration, stale references, cleanup identity check). Minor consideration: could potentially handle cleanup function errors, but current implementation is production-ready.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "The solution correctly identifies and fixes the memory leak by preventing duplicate listeners through cleanup before re-registration. The WeakMap approach is robust and handles the core issue."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Code follows existing patterns with proper TypeScript typing, consistent naming conventions (socketCleanups), and maintains the same code structure and formatting as the original."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Leverages existing WebSocketLike interface, uses the established cleanup pattern, and integrates seamlessly with the existing EventEmitter and socket handling architecture."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the memory leak issue by handling both the duplicate listener problem and proper cleanup. Covers all scenarios including re-registration and proper WeakMap entry management."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, concise explanation that identifies root cause (repeated registerSocket calls), describes the fix (WeakMap cleanup tracking), and explains the result. Easy to verify and understand."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles the main edge cases well (re-registration, stale references, cleanup identity check). Minor consideration: could potentially handle cleanup function errors, but current implementation is production-ready."
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Using a per-socket WeakMap to run prior cleanup before re-registering prevents listener stacking on repeated registerSocket calls, addressing unbounded growth. Cleanup also removes listeners and deletes its WeakMap entry. Minor risk: invoking a prior cleanup will also remove the prior events.on('broadcast') listener, which is intended, but if callers expected multiple independent registrations per socket this changes semantics."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Change is minimal, uses straightforward naming, and follows the file’s existing imperative style without introducing unnecessary abstractions."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Respects the existing WebSocketLike API surface (on/off/removeListener) and existing EventEmitter usage; WeakMap is an appropriate fit to avoid strong references to sockets."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Fixes the stated leak mode (re-registering the same socket) and ensures bounded listeners per socket lifecycle. It does not address other potential leak sources (e.g., if cleanup is never called and close never fires, or if many sockets accumulate and EventEmitter retains broadcast listeners until close), but those are outside the specific described root cause."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly states root cause (repeated registrations stacking listeners), the mechanism of the fix (WeakMap + pre-cleanup), and the expected outcome (bounded listeners), in a way that is easy to verify by inspecting listener counts."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles repeated registration idempotently and avoids stale WeakMap entries; uses identity check before delete to prevent deleting a newer cleanup. Remaining edge cases: potential ordering/race if registerSocket is called concurrently, and reliance on optional off/removeListener variants behaving consistently across socket implementations."
+          }
+        ],
+        "overallScore": 4.5
+      },
+      "weightedScore": 4.85,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/websocket/handler.ts\n+++ b/src/websocket/handler.ts\n@@ -1,27 +1,38 @@\n import { EventEmitter } from 'events';\n \n export interface WebSocketLike {\n   on(event: 'message' | 'close', cb: (data?: string) => void): void;\n   send(data: string): void;\n }\n \n const events = new EventEmitter();\n \n export function registerSocket(socket: WebSocketLike) {\n-  socket.on('message', (data) => {\n+  const onMessage = (data?: string) => {\n     events.emit('message', data);\n-  });\n+  };\n \n-  socket.on('close', () => {\n+  const onBroadcast = (message: string) => {\n+    socket.send(message);\n+  };\n+\n+  const onClose = () => {\n     events.emit('disconnect');\n-  });\n+    events.removeListener('broadcast', onBroadcast);\n+    socket.on('message', () => {}); // no-op; original listeners are scoped and will be GC'd\n+  };\n+\n+  socket.on('message', onMessage);\n+  socket.on('close', onClose);\n+  events.on('broadcast', onBroadcast);\n }\n \n export function broadcast(message: string) {\n   events.emit('broadcast', message);\n }\n \n export function onBroadcast(cb: (message: string) => void) {\n   events.on('broadcast', cb);\n+  return () => {\n+    events.removeListener('broadcast', cb);\n+  };\n }\n```\n\n**Explanation:**\n\n- **Root cause:** Every call to `registerSocket` (and `onBroadcast`) added listeners to the module-level `events` emitter that were **never removed**. When sockets disconnected, their listeners on `events` remained, causing unbounded listener growth (memory leak) proportional to the total number of connections over time.\n- **Broadcast listeners leaked per socket:** The original code had no mechanism to deliver broadcasts to individual sockets (`socket.send` was never called), and even if `onBroadcast` was used externally, its listeners accumulated without cleanup.\n- **Fix — cleanup on close:** Each socket now registers its own `onBroadcast` listener on the shared `events` emitter, and the `close` handler removes it via `events.removeListener`, breaking the reference so the socket and its closures can be garbage-collected.\n- **Fix — `onBroadcast` returns unsubscribe:** The public `onBroadcast` helper now returns a teardown function so external consumers can also clean up, preventing leaks from that path as well.\n- **Named references:** Anonymous closures were replaced with named function references (`onMessage`, `onBroadcast`, `onClose`) so they can be precisely removed from the emitter — `removeListener` requires the exact function reference.",
+      "reasoningSummary": "Strengths: explanation_quality (4/5): Clear identification of the general leak mechanism (shared emitter retaining listeners) and explains why named references matter. However, it overclaims cleanup of socket listeners (“scoped and will be GC’d”) and doesn’t justify the no-op `socket.on` line or note that proper removal requires an `off/removeListener` API. — Weaknesses: correctness (2/5): It addresses one leak path (module-level `events` retaining per-socket broadcast listeners) by removing `onBroadcast` on close, but it introduces an incorrect/ineffective cleanup: `socket.on('message', () => {})` does not remove the original `onMessage` listener (and `WebSocketLike` provides no `off/removeListener`). If the real socket implementation retains message/close listeners across lifecycle or has reconnection semantics, this remains leaky/buggy. Also, sending on broadcast can throw if socket already closed; no guard/try-catch. | edge_case_handling (2/5): No protection against broadcasting to a closed socket, potential exceptions from `socket.send`, and no handling for duplicate registrations or ensuring cleanup if `close` isn’t emitted. Doesn’t consider `EventEmitter` max listeners warnings or use `once` semantics to avoid repeat cleanup.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 2,
+            "reasoning": "The solution has a critical flaw: `socket.on('message', () => {})` in the close handler adds a new no-op listener instead of removing the original one, creating more listeners rather than cleaning up. The broadcast cleanup logic is correct but the socket listener cleanup is broken."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Code follows TypeScript conventions with proper typing, consistent naming patterns, and maintains the existing module structure. The named function approach is clean and idiomatic."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Properly uses the existing WebSocketLike interface and EventEmitter patterns. Maintains backward compatibility while extending functionality appropriately."
+          },
+          {
+            "dimension": "completeness",
+            "score": 3,
+            "reasoning": "Addresses the main memory leak issue with broadcast listeners and provides cleanup mechanisms, but fails to properly handle socket listener cleanup and doesn't address potential issues with the WebSocketLike interface lacking removeListener capability."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Excellent explanation clearly identifies the root cause, explains the memory leak mechanism, and walks through each fix. The technical details are accurate and help developers understand both the problem and solution approach."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 2,
+            "reasoning": "Doesn't handle the fact that WebSocketLike interface lacks removeListener methods, making proper cleanup impossible. Also doesn't consider scenarios like multiple close events or cleanup failures."
+          }
+        ],
+        "overallScore": 3.3333333333333335
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 2,
+            "reasoning": "It addresses one leak path (module-level `events` retaining per-socket broadcast listeners) by removing `onBroadcast` on close, but it introduces an incorrect/ineffective cleanup: `socket.on('message', () => {})` does not remove the original `onMessage` listener (and `WebSocketLike` provides no `off/removeListener`). If the real socket implementation retains message/close listeners across lifecycle or has reconnection semantics, this remains leaky/buggy. Also, sending on broadcast can throw if socket already closed; no guard/try-catch."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 3,
+            "reasoning": "Reasonably consistent TypeScript style and naming, but the added no-op `socket.on('message', () => {})` is a non-idiomatic and suspicious pattern. Introducing teardown return in `onBroadcast` changes API behavior (though backward-compatible) without showing existing conventions."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 3,
+            "reasoning": "Uses existing `EventEmitter` and types, but doesn’t respect the `WebSocketLike` surface (no way to remove socket listeners) and papered over it with a no-op registration. A more context-aware fix would either extend `WebSocketLike` with `off/removeListener` or use `once('close', ...)`/tracking to avoid accumulating listeners."
+          },
+          {
+            "dimension": "completeness",
+            "score": 3,
+            "reasoning": "Partially prevents unbounded growth by cleaning up `events` listeners per socket and adding an unsubscribe for external `onBroadcast`. However, it does not ensure all listeners are removed (socket listeners remain) and doesn’t address multiple `registerSocket` calls on the same socket or repeated closes."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Clear identification of the general leak mechanism (shared emitter retaining listeners) and explains why named references matter. However, it overclaims cleanup of socket listeners (“scoped and will be GC’d”) and doesn’t justify the no-op `socket.on` line or note that proper removal requires an `off/removeListener` API."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 2,
+            "reasoning": "No protection against broadcasting to a closed socket, potential exceptions from `socket.send`, and no handling for duplicate registrations or ensuring cleanup if `close` isn’t emitted. Doesn’t consider `EventEmitter` max listeners warnings or use `once` semantics to avoid repeat cleanup."
+          }
+        ],
+        "overallScore": 2.8333333333333335
+      },
+      "weightedScore": 3.05,
+      "dimensionAverages": {
+        "correctness": 2,
+        "style_adherence": 3,
+        "context_utilization": 3,
+        "completeness": 3,
+        "explanation_quality": 4,
+        "edge_case_handling": 2
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 4.85,
+  "interJudgeAgreement": {
+    "alignmentRate": 1
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "id": "10608145-5e70-4077-a417-75fadc66030d",
+  "taskId": "refactor-callbacks-async",
+  "taskTitle": "Refactor Callbacks to Async/Await",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-17T18:39:30.775Z",
+  "completedAt": "2026-02-17T18:41:10.484Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "```diff\ndiff --git a/src/services/reporting.ts b/src/services/reporting.ts\nindex 7f0c2b1..4de9a3f 100644\n--- a/src/services/reporting.ts\n+++ b/src/services/reporting.ts\n@@ -1,25 +1,29 @@\n import { db } from '../db';\n \n-export function fetchRevenueReport(\n+export async function fetchRevenueReport(\n   startDate: string,\n   endDate: string,\n   cb: (err: Error | null, rows?: Array<{ day: string; total: number }>) => void\n ) {\n   const sql =\n     'SELECT day, total FROM revenue WHERE day >= $1 AND day <= $2 ORDER BY day ASC';\n-  db.query(sql, [startDate, endDate])\n-    .then((rows) => cb(null, rows as Array<{ day: string; total: number }>))\n-    .catch((err) => cb(err));\n+  try {\n+    const rows = await db.query<{ day: string; total: number }>(sql, [startDate, endDate]);\n+    cb(null, rows);\n+  } catch (err) {\n+    cb(err as Error);\n+  }\n }\n \n-export function fetchTopCustomers(\n+export async function fetchTopCustomers(\n   limit: number,\n   cb: (err: Error | null, rows?: Array<{ customer_id: string; total: number }>) => void\n ) {\n   const sql =\n     'SELECT customer_id, SUM(total) as total FROM orders GROUP BY customer_id ORDER BY total DESC LIMIT $1';\n-  db.query(sql, [limit])\n-    .then((rows) => cb(null, rows as Array<{ customer_id: string; total: number }>))\n-    .catch((err) => cb(err));\n+  try {\n+    const rows = await db.query<{ customer_id: string; total: number }>(sql, [limit]);\n+    cb(null, rows);\n+  } catch (err) {\n+    cb(err as Error);\n+  }\n }\n```\n\n- Keeps the callback contract intact: success still calls `cb(null, rows)`, failures call `cb(err)`.\n- Refactors internals to `async/await` with `try/catch`, removing `.then/.catch` chains.\n- Uses `db.query<T>(...)` generics to match existing typed query usage and avoid cast-heavy style.\n- Aligns with repo async patterns (`export async function ...`) rather than introducing wrapper/IIFE patterns.",
+      "reasoningSummary": "Strengths: correctness (5/5): Code correctly refactors from Promise chains to async/await while preserving the exact same callback behavior and error handling | style_adherence (5/5): Uses consistent async/await patterns with try/catch blocks and maintains the repo's export function style without introducing foreign patterns | context_utilization (5/5): Properly uses existing db module, leverages TypeScript generics for type safety, and respects the existing callback-based public API contract | completeness (5/5): Fully refactors both functions from callbacks to async/await as requested, covering the complete scope without missing any components | explanation_quality (5/5): Clear, detailed explanation covering callback preservation, error handling approach, TypeScript usage, and alignment with repo patterns | edge_case_handling (4/5): Handles error cases properly with type casting, but could potentially improve null/undefined handling in the callback invocation",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code correctly refactors from Promise chains to async/await while preserving the exact same callback behavior and error handling"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Uses consistent async/await patterns with try/catch blocks and maintains the repo's export function style without introducing foreign patterns"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Properly uses existing db module, leverages TypeScript generics for type safety, and respects the existing callback-based public API contract"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully refactors both functions from callbacks to async/await as requested, covering the complete scope without missing any components"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, detailed explanation covering callback preservation, error handling approach, TypeScript usage, and alignment with repo patterns"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles error cases properly with type casting, but could potentially improve null/undefined handling in the callback invocation"
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Functionality is preserved (still invokes cb with (null, rows) or (err)), and async/await with try/catch is correct. Minor risk: marking the function async changes its return type to Promise, which can surface unhandled rejections if a caller expected a purely void-returning callback API and an error escapes (unlikely here since errors are caught)."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 3,
+            "reasoning": "The refactor uses async/await, but also introduces a typed generic call db.query<T>(), which may or may not match existing repo usage; the original code used casts instead. Also exporting an async function while keeping a callback parameter can be an imposed style if the repo typically keeps callback-style functions non-async when preserving public API shape."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 3,
+            "reasoning": "Uses the existing db.query API appropriately, but assumes it supports generics and returns rows in the shape expected (rows vs result object). Without repo context, the generic addition could be speculative and diverge from actual db wrapper conventions."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Refactors both functions’ internal promise chains to async/await and keeps the callback contract intact. Scope appears fully covered for the shown file."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation is clear and maps to the diff (callback contract preserved, try/catch conversion). However, it asserts alignment with repo patterns and typed query usage without evidence from the repo, which reduces verifiability."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Catches and forwards errors to cb, but does not guard against double-callback hazards or sync exceptions thrown by cb itself. Also, making the function async introduces a Promise that could be ignored; while not usually harmful, it’s a subtle behavior change in some environments."
+          }
+        ],
+        "overallScore": 3.5
+      },
+      "weightedScore": 4.85,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": false,
+          "context_utilization": false,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 0.6666666666666666
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/services/reporting.ts\n+++ b/src/services/reporting.ts\n@@ -1,27 +1,17 @@\n import { db } from '../db';\n \n-export function fetchRevenueReport(\n-  startDate: string,\n-  endDate: string,\n-  cb: (err: Error | null, rows?: Array<{ day: string; total: number }>) => void\n-) {\n+export async function fetchRevenueReport(\n+  startDate: string,\n+  endDate: string\n+): Promise<Array<{ day: string; total: number }>> {\n   const sql =\n     'SELECT day, total FROM revenue WHERE day >= $1 AND day <= $2 ORDER BY day ASC';\n-  db.query(sql, [startDate, endDate])\n-    .then((rows) => cb(null, rows as Array<{ day: string; total: number }>))\n-    .catch((err) => cb(err));\n+  const rows = await db.query(sql, [startDate, endDate]);\n+  return rows as Array<{ day: string; total: number }>;\n }\n \n-export function fetchTopCustomers(\n-  limit: number,\n-  cb: (err: Error | null, rows?: Array<{ customer_id: string; total: number }>) => void\n-) {\n+export async function fetchTopCustomers(\n+  limit: number\n+): Promise<Array<{ customer_id: string; total: number }>> {\n   const sql =\n     'SELECT customer_id, SUM(total) as total FROM orders GROUP BY customer_id ORDER BY total DESC LIMIT $1';\n-  db.query(sql, [limit])\n-    .then((rows) => cb(null, rows as Array<{ customer_id: string; total: number }>))\n-    .catch((err) => cb(err));\n+  const rows = await db.query(sql, [limit]);\n+  return rows as Array<{ customer_id: string; total: number }>;\n }\n```\n\n**Explanation:**\n\n- Replaced callback signatures with `async` functions returning typed `Promise`s, matching the `async` pattern already used in `src/db/index.ts`.\n- Used `await db.query(...)` directly instead of `.then()/.catch()` chains, keeping the style consistent with the repo's existing `async query` implementation.\n- Errors now propagate naturally as rejected promises rather than being funneled through a callback, preserving equivalent error semantics for callers using `try/catch` or `.catch()`.\n- Removed the `cb` parameter entirely—callers simply `await` the result, which is the idiomatic TypeScript/async approach the repo already follows.\n- No changes to SQL queries, parameter handling, or the `db` module; only the async contract of the reporting functions was updated.",
+      "reasoningSummary": "Weaknesses: correctness (2/5): While the async/await implementation itself is syntactically correct, it changes the public API from callback-based to promise-based, which will break existing callers unless the entire call chain was updated. Also, removing explicit error-to-callback handling changes observable behavior for callback consumers. | context_utilization (2/5): The change references \"src/db/index.ts\" patterns without showing evidence of how services are expected to expose async behavior. It doesn’t leverage existing types/interfaces (if any) and doesn’t account for existing callback-based consumers in the repo. | completeness (2/5): Only the two functions are refactored; there is no update to any call sites, tests, or exported API expectations. If the task was to refactor callbacks to async/await repo-wide, this is incomplete and likely leaves the codebase failing to compile/run. | edge_case_handling (2/5): No consideration of backward compatibility (e.g., supporting both callback and promise forms during migration) or how db.query errors/return shape behave. A safer approach would preserve the prior API or provide an overload/wrapper to avoid breaking callers.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code correctly converts callback-based functions to async/await, maintains same functionality with proper error propagation through promise rejection"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Uses async/await pattern consistent with existing repo style mentioned in db/index.ts, follows TypeScript conventions with proper typing"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Appropriately uses existing db module and query methods, maintains existing SQL queries and parameter handling without unnecessary changes"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully refactors both functions from callbacks to async/await, removes callback parameters, adds proper return types, addresses complete scope"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear explanation covers all changes made, explains error handling preservation, confirms no behavioral changes to core logic"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Maintains error propagation semantics but could benefit from more explicit error handling discussion for type casting operations"
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 2,
+            "reasoning": "While the async/await implementation itself is syntactically correct, it changes the public API from callback-based to promise-based, which will break existing callers unless the entire call chain was updated. Also, removing explicit error-to-callback handling changes observable behavior for callback consumers."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 3,
+            "reasoning": "Using async/await is generally consistent with modern TS style, but claiming consistency with db.query being async is not sufficient—repo style may still expose callback-based service APIs. This refactor imposes a promise-returning API rather than adapting to existing service-layer conventions."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 2,
+            "reasoning": "The change references \"src/db/index.ts\" patterns without showing evidence of how services are expected to expose async behavior. It doesn’t leverage existing types/interfaces (if any) and doesn’t account for existing callback-based consumers in the repo."
+          },
+          {
+            "dimension": "completeness",
+            "score": 2,
+            "reasoning": "Only the two functions are refactored; there is no update to any call sites, tests, or exported API expectations. If the task was to refactor callbacks to async/await repo-wide, this is incomplete and likely leaves the codebase failing to compile/run."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 3,
+            "reasoning": "Explanation is clear about what changed, but it overstates behavioral equivalence (callback error-first vs rejected promise is not equivalent for existing callers) and assumes repo-wide async style alignment without evidence."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 2,
+            "reasoning": "No consideration of backward compatibility (e.g., supporting both callback and promise forms during migration) or how db.query errors/return shape behave. A safer approach would preserve the prior API or provide an overload/wrapper to avoid breaking callers."
+          }
+        ],
+        "overallScore": 2.3333333333333335
+      },
+      "weightedScore": 2.45,
+      "dimensionAverages": {
+        "correctness": 2,
+        "style_adherence": 3,
+        "context_utilization": 2,
+        "completeness": 2,
+        "explanation_quality": 3,
+        "edge_case_handling": 2
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": false,
+          "style_adherence": false,
+          "context_utilization": false,
+          "completeness": false,
+          "explanation_quality": false,
+          "edge_case_handling": false
+        },
+        "alignmentRate": 0
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 4.85,
+  "interJudgeAgreement": {
+    "alignmentRate": 0.3333333333333333
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "id": "78158fff-1e6c-417d-91d3-4d917783c880",
+  "taskId": "retry-backoff",
+  "taskTitle": "Implement Retry with Exponential Backoff",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-17T18:47:55.855Z",
+  "completedAt": "2026-02-17T18:49:44.002Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "```diff\ndiff --git a/lib/agent-eval/fixture-repo/src/utils/retry.ts b/lib/agent-eval/fixture-repo/src/utils/retry.ts\nnew file mode 100644\nindex 0000000..73b955c\n--- /dev/null\n+++ b/lib/agent-eval/fixture-repo/src/utils/retry.ts\n@@ -0,0 +1,79 @@\n+type RetryError = Error & { retryable?: boolean; nonRetryable?: boolean };\n+\n+export type RetryOptions = {\n+  baseDelayMs?: number;\n+  maxDelayMs?: number;\n+  backoffFactor?: number;\n+  jitter?: number;\n+  isRetryable?: (error: Error, attempt: number) => boolean;\n+};\n+\n+function sleep(ms: number): Promise<void> {\n+  return new Promise((resolve) => {\n+    setTimeout(resolve, ms);\n+  });\n+}\n+\n+function isRetryableError(\n+  error: Error,\n+  attempt: number,\n+  isRetryable?: (error: Error, attempt: number) => boolean\n+): boolean {\n+  if (isRetryable) {\n+    return isRetryable(error, attempt);\n+  }\n+  const retryError = error as RetryError;\n+  if (retryError.nonRetryable === true) return false;\n+  if (retryError.retryable === false) return false;\n+  return true;\n+}\n+\n+function toError(err: unknown): Error {\n+  if (err instanceof Error) {\n+    return err;\n+  }\n+  return new Error(String(err));\n+}\n+\n+export async function retry<T>(\n+  fn: () => Promise<T>,\n+  attempts: number,\n+  options: RetryOptions = {}\n+): Promise<T> {\n+  const maxAttempts = Number.isFinite(attempts) ? Math.max(1, Math.floor(attempts)) : 1;\n+  const baseDelayMs = Math.max(0, options.baseDelayMs ?? 100);\n+  const maxDelayMs = Math.max(baseDelayMs, options.maxDelayMs ?? 10_000);\n+  const backoffFactor = Math.max(1, options.backoffFactor ?? 2);\n+  const jitter = Math.max(0, Math.min(options.jitter ?? 0.2, 1));\n+\n+  let lastError: Error | null = null;\n+\n+  for (let i = 0; i < maxAttempts; i++) {\n+    try {\n+      return await fn();\n+    } catch (err) {\n+      lastError = toError(err);\n+      const attempt = i + 1;\n+      const hasAttemptsRemaining = attempt < maxAttempts;\n+\n+      if (!isRetryableError(lastError, attempt, options.isRetryable)) {\n+        throw lastError;\n+      }\n+\n+      if (!hasAttemptsRemaining) {\n+        break;\n+      }\n+\n+      const exponentialDelay = Math.min(\n+        maxDelayMs,\n+        baseDelayMs * backoffFactor ** i\n+      );\n+      const jitterMultiplier = 1 + (Math.random() * 2 - 1) * jitter;\n+      const delayMs = Math.max(0, Math.round(exponentialDelay * jitterMultiplier));\n+\n+      await sleep(delayMs);\n+    }\n+  }\n+\n+  throw lastError || new Error('Failed after retries');\n+}\n```\n\n- Added exponential backoff with cap: `baseDelayMs * backoffFactor ** i`, bounded by `maxDelayMs`.\n- Added jitter support (`0..1`) with symmetric randomization around the computed delay.\n- Added non-retryable early exit via `nonRetryable === true`, `retryable === false`, or custom `isRetryable`.\n- Enforced max-attempt safety by normalizing `attempts` to a finite, floored value with a minimum of 1.\n- Hardened error handling by converting non-`Error` throws into `Error` before retry logic.",
+      "reasoningSummary": "Strengths: correctness (5/5): Code correctly implements exponential backoff with proper bounds, handles jitter calculation accurately, and properly manages retry/non-retry logic with early exits | style_adherence (5/5): Follows TypeScript conventions with proper type definitions, clear naming, consistent formatting, and idiomatic patterns | context_utilization (4/5): Creates appropriate utility module in utils directory, though lacks integration with existing codebase patterns since this appears to be a new utility | completeness (5/5): Fully implements all requested features: configurable exponential backoff, jitter support, non-retryable error handling, max attempts enforcement, and robust error handling | explanation_quality (5/5): Clear, technical explanation covering all key implementation details with specific examples of how each feature works | edge_case_handling (5/5): Excellently handles edge cases: normalizes invalid attempts, bounds all numeric inputs, converts non-Error throws, provides multiple non-retryable mechanisms, and ensures finite delays",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code correctly implements exponential backoff with proper bounds, handles jitter calculation accurately, and properly manages retry/non-retry logic with early exits"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows TypeScript conventions with proper type definitions, clear naming, consistent formatting, and idiomatic patterns"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Creates appropriate utility module in utils directory, though lacks integration with existing codebase patterns since this appears to be a new utility"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully implements all requested features: configurable exponential backoff, jitter support, non-retryable error handling, max attempts enforcement, and robust error handling"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, technical explanation covering all key implementation details with specific examples of how each feature works"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Excellently handles edge cases: normalizes invalid attempts, bounds all numeric inputs, converts non-Error throws, provides multiple non-retryable mechanisms, and ensures finite delays"
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Implements exponential backoff with cap, jitter, and retry loop correctly; normalizes attempts and converts non-Error throws. Minor concern: attempt index used for delay is i (0-based) so first retry waits baseDelayMs (reasonable), but semantics should match repo expectations; also relies on Math.random (non-deterministic) which can complicate tests."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 3,
+            "reasoning": "Code is clean TypeScript, but introduces a brand-new utility file without showing integration with existing patterns (exports, naming, folder conventions, lint rules). May or may not match the repo’s established retry utilities/signatures."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 2,
+            "reasoning": "Doesn’t reference or adapt existing repo utilities/types (if any) and adds a standalone implementation. No evidence it was wired into current call sites or aligned with existing error typing conventions beyond ad-hoc retryable/nonRetryable flags."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Covers the requested scope: configurable backoff, jitter, max attempts handling, and early exit for non-retryable errors (including custom predicate). Missing optional niceties like AbortSignal support, onRetry callback/telemetry, or documenting expected error flag usage."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation maps directly to code changes and is easy to verify (backoff formula, jitter bounds, retryability rules, attempts normalization). Could be stronger by clarifying attempt numbering and jitter distribution choice."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles non-finite/invalid attempts, caps delays, clamps jitter to [0,1], supports non-Error throws, and provides early exit for non-retryable errors. Remaining gaps: no handling for fn that is not idempotent (documentation), no cancellation, and jitter uses Math.random without seeding which can make deterministic testing harder."
+          }
+        ],
+        "overallScore": 3.5
+      },
+      "weightedScore": 4.75,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 4,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 5
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": false,
+          "context_utilization": false,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 0.6666666666666666
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/utils/retry.ts\n+++ b/src/utils/retry.ts\n@@ -1,15 +1,62 @@\n+export class NonRetryableError extends Error {\n+  readonly nonRetryable = true;\n+\n+  constructor(message: string, options?: ErrorOptions) {\n+    super(message, options);\n+    this.name = 'NonRetryableError';\n+  }\n+}\n+\n+export interface RetryOptions {\n+  /** Maximum number of attempts (must be ≥ 1). Default: 3 */\n+  attempts?: number;\n+  /** Base delay in ms before the first retry. Default: 200 */\n+  baseDelayMs?: number;\n+  /** Maximum delay in ms (caps the exponential growth). Default: 30_000 */\n+  maxDelayMs?: number;\n+  /** Jitter factor in [0, 1]. 0 = no jitter, 1 = full jitter. Default: 1 */\n+  jitter?: number;\n+}\n+\n+function isNonRetryable(err: unknown): boolean {\n+  if (err instanceof NonRetryableError) return true;\n+  if (typeof err === 'object' && err !== null && 'nonRetryable' in err) {\n+    return (err as Record<string, unknown>).nonRetryable === true;\n+  }\n+  return false;\n+}\n+\n+function sleep(ms: number): Promise<void> {\n+  return new Promise((resolve) => setTimeout(resolve, ms));\n+}\n+\n export async function retry<T>(\n   fn: () => Promise<T>,\n-  attempts: number\n+  attemptsOrOpts?: number | RetryOptions\n ): Promise<T> {\n+  const opts: RetryOptions =\n+    typeof attemptsOrOpts === 'number'\n+      ? { attempts: attemptsOrOpts }\n+      : attemptsOrOpts ?? {};\n+\n+  const maxAttempts = Math.max(opts.attempts ?? 3, 1);\n+  const baseDelay = opts.baseDelayMs ?? 200;\n+  const maxDelay = opts.maxDelayMs ?? 30_000;\n+  const jitter = Math.min(Math.max(opts.jitter ?? 1, 0), 1);\n+\n   let lastError: Error | null = null;\n-  for (let i = 0; i < attempts; i++) {\n+\n+  for (let attempt = 0; attempt < maxAttempts; attempt++) {\n     try {\n       return await fn();\n     } catch (err) {\n       lastError = err as Error;\n+\n+      if (isNonRetryable(err)) {\n+        throw lastError;\n+      }\n+\n+      if (attempt < maxAttempts - 1) {\n+        const exponentialDelay = baseDelay * 2 ** attempt;\n+        const capped = Math.min(exponentialDelay, maxDelay);\n+        const jitteredDelay = capped * (1 - jitter + jitter * Math.random());\n+        await sleep(jitteredDelay);\n+      }\n     }\n   }\n+\n   throw lastError || new Error('Failed after retries');\n }\n```\n\n**Explanation:**\n\n- **Exponential backoff** — delay doubles each attempt (`baseDelay * 2^attempt`), capped by `maxDelayMs` to prevent absurdly long waits.\n- **Full jitter by default** — the delay is randomised between `[capped * (1 − jitter), capped]`, reducing thundering-herd effects; configurable via the `jitter` option (0 = deterministic, 1 = full).\n- **Non-retryable errors** — a new `NonRetryableError` class (and duck-type check for `{ nonRetryable: true }`) causes an immediate rethrow, skipping remaining attempts.\n- **Max attempts honoured** — `attempts` is clamped to ≥ 1; no sleep occurs after the final failed attempt.\n- **Backward compatible** — the second parameter still accepts a plain `number` for existing call-sites, while the new `RetryOptions` object enables full configuration.",
+      "reasoningSummary": "Strengths: correctness (4/5): Implements exponential backoff with cap, jitter, non-retryable early exit, and avoids sleeping after the final attempt. Minor concerns: sleep accepts a floating-point delay (setTimeout will coerce but it’s a bit sloppy), and negative/NaN baseDelayMs/maxDelayMs aren’t validated, which could lead to unexpected timing behavior. | style_adherence (4/5): Code is clean, typed, and documented. Adding a custom error class and options interface in the same file is reasonable. Potential repo-style mismatch: introducing a new exported error type and helper functions without evidence of existing conventions (e.g., existing error taxonomy, naming, or lint preferences) may be slightly inconsistent. | completeness (5/5): Directly addresses the requested scope: configurable backoff, jitter, max attempts, and early exit for non-retryable errors, plus capping and default values. | explanation_quality (4/5): Explanation is clear and maps to the code (doubling, cap, jitter behavior, early exit, last-attempt behavior, backward compatibility). One minor issue: it describes jitter range as [capped*(1-jitter), capped], which matches the formula, but doesn’t call out that this is not the common 'full jitter' strategy (0..capped) used in some references. | edge_case_handling (4/5): Handles key edge cases: attempts clamped to >=1, no delay after last attempt, non-retryable errors via class and duck-typing, jitter clamped to [0,1], and delay capped. Gaps: no validation for negative/NaN delays, no support for AbortSignal/cancellation, and jitter strategy is a simple multiplicative variant (fine, but could be debated for herd avoidance).",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code correctly implements exponential backoff with proper delay calculation, handles non-retryable errors immediately, respects max attempts, and includes proper jitter implementation. Logic flow is sound."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows TypeScript conventions with proper interface definitions, readonly properties, consistent naming (camelCase), and appropriate use of optional parameters and defaults."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Maintains backward compatibility with existing API while extending functionality. Uses appropriate TypeScript features and respects the existing module structure."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses all requirements: configurable exponential backoff, jitter implementation, non-retryable error handling, max attempts enforcement, and maintains backward compatibility."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, comprehensive explanation covering all key features with specific implementation details. Bullet points make it easy to verify each requirement was met."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Handles all gnarly edge cases: jitter bounds clamping [0,1], attempts clamped to ≥1, max delay capping, duck-typing for non-retryable errors, no sleep after final attempt, and proper error propagation."
+          }
+        ],
+        "overallScore": 5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Implements exponential backoff with cap, jitter, non-retryable early exit, and avoids sleeping after the final attempt. Minor concerns: sleep accepts a floating-point delay (setTimeout will coerce but it’s a bit sloppy), and negative/NaN baseDelayMs/maxDelayMs aren’t validated, which could lead to unexpected timing behavior."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Code is clean, typed, and documented. Adding a custom error class and options interface in the same file is reasonable. Potential repo-style mismatch: introducing a new exported error type and helper functions without evidence of existing conventions (e.g., existing error taxonomy, naming, or lint preferences) may be slightly inconsistent."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 3,
+            "reasoning": "Maintains backward compatibility with the prior `(fn, attempts)` signature, which is good. However, it doesn’t reference any existing repo utilities (e.g., shared sleep/timing helpers, error helpers, logging/metrics hooks) that might already exist; hard to confirm without more context."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Directly addresses the requested scope: configurable backoff, jitter, max attempts, and early exit for non-retryable errors, plus capping and default values."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation is clear and maps to the code (doubling, cap, jitter behavior, early exit, last-attempt behavior, backward compatibility). One minor issue: it describes jitter range as [capped*(1-jitter), capped], which matches the formula, but doesn’t call out that this is not the common 'full jitter' strategy (0..capped) used in some references."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles key edge cases: attempts clamped to >=1, no delay after last attempt, non-retryable errors via class and duck-typing, jitter clamped to [0,1], and delay capped. Gaps: no validation for negative/NaN delays, no support for AbortSignal/cancellation, and jitter strategy is a simple multiplicative variant (fine, but could be debated for herd avoidance)."
+          }
+        ],
+        "overallScore": 4
+      },
+      "weightedScore": 3.85,
+      "dimensionAverages": {
+        "correctness": 4,
+        "style_adherence": 4,
+        "context_utilization": 3,
+        "completeness": 5,
+        "explanation_quality": 4,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": false,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 0.8333333333333334
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 4.75,
+  "interJudgeAgreement": {
+    "alignmentRate": 0.75
+  }
+}

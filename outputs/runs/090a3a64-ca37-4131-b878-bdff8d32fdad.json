@@ -1,0 +1,216 @@
+{
+  "id": "090a3a64-ca37-4131-b878-bdff8d32fdad",
+  "taskId": "optimize-db-query",
+  "taskTitle": "Optimize Slow Database Query",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-17T18:56:23.181Z",
+  "completedAt": "2026-02-17T18:57:15.062Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "*** Begin Patch\n*** Update File: src/db/orders.ts\n@@\n import { db } from './index';\n@@\n export interface Customer {\n   id: string;\n   email: string;\n }\n \n export async function getRecentOrders(): Promise<Array<Order & { customer: Customer | null }>> {\n-  const orders = await db.query<Order>(\n-    'SELECT id, customer_id, total FROM orders ORDER BY id DESC LIMIT 50'\n+  interface RecentOrderRow {\n+    id: string;\n+    customer_id: string;\n+    total: number;\n+    customer_email: string | null;\n+  }\n+\n+  const rows = await db.query<RecentOrderRow>(\n+    `\n+      SELECT\n+        o.id,\n+        o.customer_id,\n+        o.total,\n+        c.email AS customer_email\n+      FROM orders o\n+      LEFT JOIN customers c ON c.id = o.customer_id\n+      ORDER BY o.id DESC\n+      LIMIT 50\n+    `\n   );\n \n-  const results: Array<Order & { customer: Customer | null }> = [];\n-\n-  for (const order of orders) {\n-    const customers = await db.query<Customer>(\n-      'SELECT id, email FROM customers WHERE id = $1',\n-      [order.customer_id]\n-    );\n-    results.push({ ...order, customer: customers[0] || null });\n-  }\n-\n-  return results;\n+  return rows.map((row) => ({\n+    id: row.id,\n+    customer_id: row.customer_id,\n+    total: row.total,\n+    customer: row.customer_email\n+      ? {\n+          id: row.customer_id,\n+          email: row.customer_email,\n+        }\n+      : null,\n+  }));\n }\n*** End Patch\n\n- Root cause was an `N+1` pattern: 1 query for orders + up to 50 per-customer queries.\n- Replaced it with a single `LEFT JOIN` query to fetch orders and customer email together.\n- Kept the returned shape unchanged: `Array<Order & { customer: Customer | null }>` with `customer` nullable.\n- Preserved ordering and limit behavior (`ORDER BY id DESC LIMIT 50`).\n- Reduced query count from up to 51 to 1, which removes per-row round trips and improves latency.",
+      "reasoningSummary": "Strengths: correctness (5/5): The solution correctly identifies and fixes the N+1 query problem using a LEFT JOIN, preserves the exact output shape, and maintains all business logic including ordering and limits. | style_adherence (5/5): Follows existing TypeScript patterns, maintains consistent naming conventions, uses proper interface definitions, and matches the existing code structure and formatting. | context_utilization (5/5): Appropriately uses existing db module, preserves the Customer interface, maintains the expected return type, and respects the existing API contract. | completeness (5/5): Fully addresses the database optimization task by eliminating the performance bottleneck while preserving all functionality, ordering, limits, and nullable customer handling. | explanation_quality (5/5): Provides clear identification of the N+1 problem, explains the solution approach, confirms preserved behavior, and quantifies the performance improvement (51 queries to 1). | edge_case_handling (5/5): Properly handles null customers using LEFT JOIN and conditional logic, maintains the nullable customer field as expected, and preserves all edge case behavior from the original code.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "The solution correctly identifies and fixes the N+1 query problem using a LEFT JOIN, preserves the exact output shape, and maintains all business logic including ordering and limits."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows existing TypeScript patterns, maintains consistent naming conventions, uses proper interface definitions, and matches the existing code structure and formatting."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Appropriately uses existing db module, preserves the Customer interface, maintains the expected return type, and respects the existing API contract."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the database optimization task by eliminating the performance bottleneck while preserving all functionality, ordering, limits, and nullable customer handling."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Provides clear identification of the N+1 problem, explains the solution approach, confirms preserved behavior, and quantifies the performance improvement (51 queries to 1)."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Properly handles null customers using LEFT JOIN and conditional logic, maintains the nullable customer field as expected, and preserves all edge case behavior from the original code."
+          }
+        ],
+        "overallScore": 5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Eliminates the N+1 by using a LEFT JOIN, preserves ordering/limit, and returns the same overall output shape with `customer` nullable. Mapping correctly constructs `customer` when present."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Change is localized and readable; uses existing `db.query` pattern. Minor deviation: introduces an inline interface (`RecentOrderRow`) inside the function which may or may not match repo conventions."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Respects existing types (`Order`, `Customer`) and the `db` API. However, it only selects `c.email` and infers customer presence from email rather than selecting `c.id`, which is slightly less robust given existing `Customer` shape includes `id`."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the performance issue by reducing query count from up to 51 to 1 while keeping the function signature and return structure intact."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly identifies root cause (N+1), describes the fix (LEFT JOIN), and states key invariants preserved (shape, ordering, limit, query count)."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "LEFT JOIN handles missing customers, but determining customer existence via `customer_email` could mis-handle cases where a customer row exists with NULL email (would incorrectly return `customer: null`). Selecting `c.id` (and checking it) would be safer."
+          }
+        ],
+        "overallScore": 4.333333333333333
+      },
+      "weightedScore": 5,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 5
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": false
+        },
+        "alignmentRate": 0.8333333333333334
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/db/orders.ts\n+++ b/src/db/orders.ts\n@@ -14,18 +14,25 @@ export interface Customer {\n export async function getRecentOrders(): Promise<Array<Order & { customer: Customer | null }>> {\n   const orders = await db.query<Order>(\n     'SELECT id, customer_id, total FROM orders ORDER BY id DESC LIMIT 50'\n   );\n \n-  const results: Array<Order & { customer: Customer | null }> = [];\n+  if (orders.length === 0) {\n+    return [];\n+  }\n \n-  for (const order of orders) {\n-    const customers = await db.query<Customer>(\n-      'SELECT id, email FROM customers WHERE id = $1',\n-      [order.customer_id]\n-    );\n-    results.push({ ...order, customer: customers[0] || null });\n-  }\n+  const customerIds = [...new Set(orders.map((o) => o.customer_id))];\n+  const placeholders = customerIds.map((_, i) => `$${i + 1}`).join(', ');\n+\n+  const customers = await db.query<Customer>(\n+    `SELECT id, email FROM customers WHERE id IN (${placeholders})`,\n+    customerIds\n+  );\n+\n+  const customerMap = new Map(customers.map((c) => [c.id, c]));\n+\n+  const results = orders.map((order) => ({\n+    ...order,\n+    customer: customerMap.get(order.customer_id) || null,\n+  }));\n \n   return results;\n }\n```\n\n**Explanation:**\n\n- **Root cause (N+1 problem):** The original code executed one query per order inside a loop — for 50 orders that's 51 total queries (1 for orders + 50 for customers), which is a classic N+1 issue causing high latency and database load.\n- **Fix:** Collect all unique `customer_id` values from the fetched orders and retrieve all matching customers in a single `WHERE id IN (...)` query, reducing total queries from 51 to 2.\n- **Lookup via Map:** A `Map` keyed by customer `id` provides O(1) lookups when assembling the final results, keeping the join logic efficient in application code.\n- **Output shape preserved:** The return type `Array<Order & { customer: Customer | null }>` is unchanged; orders with no matching customer still get `null`.\n- **Early return:** Added a short-circuit for the empty-orders case to avoid issuing a needless customers query.",
+      "reasoningSummary": "Strengths: correctness (4/5): Fixes the N+1 by batching customer lookups and preserves the returned array shape with customer nullability. Potential issue: if order.customer_id can be NULL/undefined, it will be included in the IN list and may behave unexpectedly depending on DB/driver; otherwise correct. | style_adherence (4/5): Uses straightforward TS/JS patterns consistent with typical repo code (map/set/Map, early return). Minor concern: manual placeholder construction could be less idiomatic if repo has helpers for IN clauses. | context_utilization (4/5): Respects existing types and the db.query API, reuses Order/Customer interfaces, and keeps function signature unchanged. Does not leverage a SQL JOIN, which might be preferred if the codebase favors SQL-side joins. | completeness (5/5): Directly addresses the performance problem by reducing query count while keeping output shape the same, including handling the empty-orders case. | explanation_quality (5/5): Clearly identifies the root cause (N+1), quantifies the improvement, explains how the Map reconstruction works, and states output-shape preservation and the early return.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Solution correctly identifies and fixes the N+1 query problem, reducing 51 queries to 2 while maintaining exact output format and handling null customers properly."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Code follows existing TypeScript patterns, uses consistent formatting, variable naming conventions, and maintains the same function signature and structure."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Properly uses existing db.query API, preserves Order and Customer interfaces, and maintains compatibility with existing code that calls this function."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the database optimization task by eliminating the performance bottleneck while preserving all functionality and output requirements."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Excellent explanation clearly identifies the N+1 problem, explains the solution approach, covers technical details like Map usage, and addresses output preservation."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Handles empty orders case with early return, manages duplicate customer IDs with Set deduplication, and properly handles missing customers with null fallback."
+          }
+        ],
+        "overallScore": 5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Fixes the N+1 by batching customer lookups and preserves the returned array shape with customer nullability. Potential issue: if order.customer_id can be NULL/undefined, it will be included in the IN list and may behave unexpectedly depending on DB/driver; otherwise correct."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Uses straightforward TS/JS patterns consistent with typical repo code (map/set/Map, early return). Minor concern: manual placeholder construction could be less idiomatic if repo has helpers for IN clauses."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Respects existing types and the db.query API, reuses Order/Customer interfaces, and keeps function signature unchanged. Does not leverage a SQL JOIN, which might be preferred if the codebase favors SQL-side joins."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Directly addresses the performance problem by reducing query count while keeping output shape the same, including handling the empty-orders case."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly identifies the root cause (N+1), quantifies the improvement, explains how the Map reconstruction works, and states output-shape preservation and the early return."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Handles no-orders via early return and missing customers via null. Does not address potential null customer_id values, very large IN lists (though limited to 50 orders), or DB parameter limits/ordering guarantees (not needed here)."
+          }
+        ],
+        "overallScore": 4.166666666666667
+      },
+      "weightedScore": 4.2,
+      "dimensionAverages": {
+        "correctness": 4,
+        "style_adherence": 4,
+        "context_utilization": 4,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 3
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": false
+        },
+        "alignmentRate": 0.8333333333333334
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 5,
+  "interJudgeAgreement": {
+    "alignmentRate": 0.8333333333333334
+  }
+}

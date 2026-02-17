@@ -1,0 +1,216 @@
+{
+  "id": "152589f0-297e-4cca-bd06-06e0aad1d25c",
+  "taskId": "optimize-db-query",
+  "taskTitle": "Optimize Slow Database Query",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "ship_fast",
+  "startedAt": "2026-02-17T19:31:02.240Z",
+  "completedAt": "2026-02-17T19:32:17.938Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "```diff\ndiff --git a/lib/agent-eval/fixture-repo/src/db/orders.ts b/lib/agent-eval/fixture-repo/src/db/orders.ts\nindex 1111111..2222222 100644\n--- a/lib/agent-eval/fixture-repo/src/db/orders.ts\n+++ b/lib/agent-eval/fixture-repo/src/db/orders.ts\n@@ -15,16 +15,24 @@ export async function getRecentOrders(): Promise<Array<Order & { customer: Cust\n   const orders = await db.query<Order>(\n     'SELECT id, customer_id, total FROM orders ORDER BY id DESC LIMIT 50'\n   );\n \n-  const results: Array<Order & { customer: Customer | null }> = [];\n-\n-  for (const order of orders) {\n-    const customers = await db.query<Customer>(\n-      'SELECT id, email FROM customers WHERE id = $1',\n-      [order.customer_id]\n-    );\n-    results.push({ ...order, customer: customers[0] || null });\n+  const customerIds = Array.from(new Set(orders.map((order) => order.customer_id)));\n+\n+  if (customerIds.length === 0) {\n+    return orders.map((order) => ({ ...order, customer: null }));\n   }\n \n-  return results;\n+  const placeholders = customerIds.map((_, index) => `$${index + 1}`).join(', ');\n+  const customers = await db.query<Customer>(\n+    `SELECT id, email FROM customers WHERE id IN (${placeholders})`,\n+    customerIds\n+  );\n+\n+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));\n+\n+  return orders.map((order) => ({\n+    ...order,\n+    customer: customerById.get(order.customer_id) || null,\n+  }));\n }\n```\n\n- The original implementation had an N+1 pattern: 1 query for orders + up to 50 per-order customer queries.\n- The fix batches customer fetches into a single `IN (...)` query using unique `customer_id` values.\n- A `Map` is used to attach customers back to each order in O(1) lookup time.\n- Return shape is unchanged: each order still includes `customer: Customer | null`.\n- Total query count is reduced from up to 51 queries to at most 2.",
+      "reasoningSummary": "Strengths: correctness (5/5): The solution correctly eliminates the N+1 query pattern, reduces query count from up to 51 to exactly 2, and preserves the exact output shape with proper null handling. | style_adherence (5/5): Code follows existing TypeScript patterns, uses consistent formatting, proper variable naming, and maintains the same function signature and structure. | context_utilization (5/5): Appropriately uses existing Order and Customer types, maintains the db.query API pattern, and respects the existing Promise<Array<Order & { customer: Customer | null }>> return type. | completeness (5/5): Fully addresses the optimization task by eliminating N+1 queries, preserving output shape, and handling all scenarios including empty results and missing customers. | explanation_quality (5/5): Clear, concise explanation covers the problem (N+1 pattern), solution approach (batching with IN query), implementation details (Map for O(1) lookup), and quantified improvement (51 to 2 queries). | edge_case_handling (5/5): Handles empty orders array, duplicate customer IDs through Set deduplication, missing customers with null fallback, and maintains production-ready error handling patterns.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "The solution correctly eliminates the N+1 query pattern, reduces query count from up to 51 to exactly 2, and preserves the exact output shape with proper null handling."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Code follows existing TypeScript patterns, uses consistent formatting, proper variable naming, and maintains the same function signature and structure."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Appropriately uses existing Order and Customer types, maintains the db.query API pattern, and respects the existing Promise<Array<Order & { customer: Customer | null }>> return type."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the optimization task by eliminating N+1 queries, preserving output shape, and handling all scenarios including empty results and missing customers."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, concise explanation covers the problem (N+1 pattern), solution approach (batching with IN query), implementation details (Map for O(1) lookup), and quantified improvement (51 to 2 queries)."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Handles empty orders array, duplicate customer IDs through Set deduplication, missing customers with null fallback, and maintains production-ready error handling patterns."
+          }
+        ],
+        "overallScore": 5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Eliminates the N+1 pattern by batching customer fetches into a single IN query and correctly re-associates customers to orders via a Map while preserving the original output shape (customer nullable)."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Change is consistent with typical TypeScript/DB helper usage and keeps logic localized; minor concern that dynamic placeholder construction might differ from repo conventions if a query builder/ANY($1) pattern is preferred."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Uses existing types (Order, Customer) and the same db.query API appropriately; does not introduce new dependencies. Assumes db.query supports variable-length parameter lists, which is likely but not explicitly verified."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Directly addresses the performance problem (query count reduction) and maintains the return contract; includes handling for empty orders to avoid invalid SQL."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly explains the original issue (N+1), the batching strategy, query-count impact, and how the output shape remains unchanged, making it easy to validate."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles empty order list and deduplicates customer IDs; returns null when customer missing. Does not address potential DB parameter limits for large IN lists, but with LIMIT 50 this is not practically an issue."
+          }
+        ],
+        "overallScore": 4.5
+      },
+      "weightedScore": 5,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 5
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/db/orders.ts\n+++ b/src/db/orders.ts\n@@ -14,18 +14,24 @@\n export async function getRecentOrders(): Promise<Array<Order & { customer: Customer | null }>> {\n   const orders = await db.query<Order>(\n     'SELECT id, customer_id, total FROM orders ORDER BY id DESC LIMIT 50'\n   );\n \n-  const results: Array<Order & { customer: Customer | null }> = [];\n+  if (orders.length === 0) {\n+    return [];\n+  }\n \n-  for (const order of orders) {\n-    const customers = await db.query<Customer>(\n-      'SELECT id, email FROM customers WHERE id = $1',\n-      [order.customer_id]\n-    );\n-    results.push({ ...order, customer: customers[0] || null });\n-  }\n+  const customerIds = [...new Set(orders.map((o) => o.customer_id))];\n+  const placeholders = customerIds.map((_, i) => `$${i + 1}`).join(', ');\n+  const customers = await db.query<Customer>(\n+    `SELECT id, email FROM customers WHERE id IN (${placeholders})`,\n+    customerIds\n+  );\n+\n+  const customerMap = new Map(customers.map((c) => [c.id, c]));\n+\n+  const results = orders.map((order) => ({\n+    ...order,\n+    customer: customerMap.get(order.customer_id) || null,\n+  }));\n \n   return results;\n }\n```\n\n**Explanation:**\n\n- **Root cause (N+1 problem):** The original code executed one customer query per order inside a loop, resulting in up to 51 queries (1 for orders + 50 for customers).\n- **Fix:** Collect all unique `customer_id` values from the orders result and fetch all matching customers in a single `WHERE id IN (...)` query — reducing total queries to exactly 2.\n- **Lookup via Map:** A `Map` keyed by customer `id` provides O(1) lookup when attaching each customer to its order, replacing the per-iteration query.\n- **Output shape preserved:** The return type `Array<Order & { customer: Customer | null }>` is unchanged; orders still appear in descending id order with `customer` set to the matching record or `null`.\n- **Edge case:** An early return for an empty orders result avoids issuing an unnecessary customers query with an empty `IN` clause.",
+      "reasoningSummary": "Strengths: correctness (5/5): Eliminates the N+1 queries by batching customer fetches into a single IN query and reconstructs results with a Map while preserving order and output shape. Early return avoids invalid/empty IN clause. | style_adherence (4/5): Matches typical TS/JS patterns (Set + Map, map()) and keeps function structure readable. Minor concern: introduces dynamic placeholder construction instead of using a repo-standard helper (if one exists). | context_utilization (4/5): Uses existing db.query API and existing Order/Customer types appropriately. Does not verify whether db.query supports array parameters/ANY($1) (which might be preferred in this codebase), but current approach is generally compatible. | completeness (5/5): Directly addresses the performance issue (query count reduction) and preserves the return type and ordering without expanding scope beyond the task. | explanation_quality (5/5): Clear identification of root cause (N+1), concrete description of the fix, query-count impact, and confirmation of preserved output shape and ordering; includes rationale for early return. | edge_case_handling (4/5): Handles empty orders and missing customers (null). Potential edge cases not discussed: if customer_id can be null, IN list will include null (may behave unexpectedly), and very large ID lists (not an issue with LIMIT 50).",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Solution correctly solves N+1 problem by batching customer queries, maintains order sorting, handles null customers properly, and preserves exact output structure"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Code follows existing TypeScript patterns, uses consistent variable naming, maintains similar query structure and error handling approach"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Properly uses existing db.query API, preserves Order and Customer types, maintains Promise return type and function signature"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully optimizes the slow query by reducing from N+1 to 2 queries while completely preserving the original output shape and behavior"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Excellent explanation clearly identifies N+1 root cause, explains the batching solution, documents performance improvement (51→2 queries), and confirms output preservation"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Handles empty orders result, duplicate customer_ids via Set deduplication, missing customers with null fallback, and empty IN clause prevention"
+          }
+        ],
+        "overallScore": 5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Eliminates the N+1 queries by batching customer fetches into a single IN query and reconstructs results with a Map while preserving order and output shape. Early return avoids invalid/empty IN clause."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Matches typical TS/JS patterns (Set + Map, map()) and keeps function structure readable. Minor concern: introduces dynamic placeholder construction instead of using a repo-standard helper (if one exists)."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Uses existing db.query API and existing Order/Customer types appropriately. Does not verify whether db.query supports array parameters/ANY($1) (which might be preferred in this codebase), but current approach is generally compatible."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Directly addresses the performance issue (query count reduction) and preserves the return type and ordering without expanding scope beyond the task."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear identification of root cause (N+1), concrete description of the fix, query-count impact, and confirmation of preserved output shape and ordering; includes rationale for early return."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles empty orders and missing customers (null). Potential edge cases not discussed: if customer_id can be null, IN list will include null (may behave unexpectedly), and very large ID lists (not an issue with LIMIT 50)."
+          }
+        ],
+        "overallScore": 4.5
+      },
+      "weightedScore": 4.6,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 4,
+        "context_utilization": 4,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 5,
+  "interJudgeAgreement": {
+    "alignmentRate": 1
+  }
+}

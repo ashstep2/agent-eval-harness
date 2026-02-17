@@ -1,0 +1,216 @@
+{
+  "id": "90c16c1e-803c-4227-a6d3-60a5a905ab46",
+  "taskId": "add-dark-mode",
+  "taskTitle": "Add Dark Mode to Component Library",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "ship_fast",
+  "startedAt": "2026-02-17T19:28:54.392Z",
+  "completedAt": "2026-02-17T19:30:51.515Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "```diff\ndiff --git a/src/theme/tokens.ts b/src/theme/tokens.ts\nindex 7bf1ab3..1ff4970 100644\n--- a/src/theme/tokens.ts\n+++ b/src/theme/tokens.ts\n@@ -6,8 +6,15 @@ export const colors = {\n     border: '#E0E0E0',\n     accent: '#3B82F6',\n   },\n+  dark: {\n+    background: '#0A0A0A',\n+    foreground: '#F5F5F5',\n+    muted: '#A3A3A3',\n+    border: '#2A2A2A',\n+    accent: '#60A5FA',\n+  },\n };\n \n-export type ThemeMode = 'light';\n+export type ThemeMode = keyof typeof colors;\n \n export function getColor(mode: ThemeMode, token: keyof typeof colors.light) {\n   return colors[mode][token];\ndiff --git a/src/components/Button.tsx b/src/components/Button.tsx\nindex 06e4b2a..9f1f09f 100644\n--- a/src/components/Button.tsx\n+++ b/src/components/Button.tsx\n@@ -1,20 +1,21 @@\n import { ReactNode } from 'react';\n-import { getColor } from '../theme/tokens';\n+import { getColor, ThemeMode } from '../theme/tokens';\n \n interface ButtonProps {\n   children: ReactNode;\n   variant?: 'primary' | 'secondary';\n+  mode?: ThemeMode;\n }\n \n-export function Button({ children, variant = 'primary' }: ButtonProps) {\n+export function Button({ children, variant = 'primary', mode = 'light' }: ButtonProps) {\n   const background =\n-    variant === 'primary' ? getColor('light', 'foreground') : 'transparent';\n+    variant === 'primary' ? getColor(mode, 'foreground') : 'transparent';\n   const color =\n-    variant === 'primary' ? getColor('light', 'background') : getColor('light', 'foreground');\n+    variant === 'primary' ? getColor(mode, 'background') : getColor(mode, 'foreground');\n \n   return (\n     <button\n       style={{\n         background,\n         color,\n-        border: `1px solid ${getColor('light', 'border')}`,\n+        border: `1px solid ${getColor(mode, 'border')}`,\n         padding: '8px 16px',\n         borderRadius: 999,\n       }}\ndiff --git a/src/components/Card.tsx b/src/components/Card.tsx\nindex f4ab7e2..f910f71 100644\n--- a/src/components/Card.tsx\n+++ b/src/components/Card.tsx\n@@ -1,14 +1,17 @@\n import { ReactNode } from 'react';\n-import { getColor } from '../theme/tokens';\n+import { getColor, ThemeMode } from '../theme/tokens';\n \n interface CardProps {\n   children: ReactNode;\n+  mode?: ThemeMode;\n }\n \n-export function Card({ children }: CardProps) {\n+export function Card({ children, mode = 'light' }: CardProps) {\n   return (\n     <div\n       style={{\n-        border: `1px solid ${getColor('light', 'border')}`,\n+        background: getColor(mode, 'background'),\n+        color: getColor(mode, 'foreground'),\n+        border: `1px solid ${getColor(mode, 'border')}`,\n         borderRadius: 12,\n         padding: 16,\n       }}\n```\n\n- Added a `dark` color palette to the existing `colors` token object.\n- Updated `ThemeMode` to derive from available token modes (`keyof typeof colors`) so modes stay in sync.\n- Extended `Button` props with `mode?: ThemeMode` and switched all token lookups from hardcoded `'light'` to `mode`.\n- Extended `Card` props with `mode?: ThemeMode`, and applied mode-aware `background`, `color`, and `border`.\n- Kept defaults at `mode = 'light'` to preserve current behavior unless dark mode is explicitly passed.",
+      "reasoningSummary": "Strengths: correctness (4/5): Code works and implements dark mode functionality correctly. Minor issue: getColor function assumes dark tokens have same structure as light tokens, which could break if they differ. | style_adherence (5/5): Perfectly follows existing patterns - uses same prop structure, naming conventions, and maintains consistent code style with the existing codebase. | context_utilization (5/5): Excellently leverages existing theme system, extends getColor function appropriately, and makes ThemeMode type dynamically derive from available colors. | completeness (4/5): Adds dark theme tokens and updates components consistently as requested. Missing theme provider/context for app-wide theme management, but components can accept mode prop directly. | explanation_quality (5/5): Clear, comprehensive explanation that details each change made, explains the reasoning, and highlights backward compatibility preservation.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Code works and implements dark mode functionality correctly. Minor issue: getColor function assumes dark tokens have same structure as light tokens, which could break if they differ."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Perfectly follows existing patterns - uses same prop structure, naming conventions, and maintains consistent code style with the existing codebase."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Excellently leverages existing theme system, extends getColor function appropriately, and makes ThemeMode type dynamically derive from available colors."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Adds dark theme tokens and updates components consistently as requested. Missing theme provider/context for app-wide theme management, but components can accept mode prop directly."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, comprehensive explanation that details each change made, explains the reasoning, and highlights backward compatibility preservation."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Handles backward compatibility well with default light mode, but lacks error handling for invalid modes and doesn't address potential token mismatches between themes."
+          }
+        ],
+        "overallScore": 4.333333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Adds dark tokens and wires mode through Button/Card without obvious runtime issues. Type change to ThemeMode and getColor remains compatible. Minor concern: primary button uses foreground as background (existing behavior) which may yield odd contrast in dark mode, but it matches prior mapping."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Follows existing token/getColor pattern and keeps changes minimal. However, introducing per-component `mode` props may diverge from a more typical repo-wide theme context/provider approach (unknown from snippet)."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Leverages existing `colors` token object and `getColor` API; improves ThemeMode by deriving from `colors`. Does not introduce a new theming mechanism beyond the existing tokens."
+          },
+          {
+            "dimension": "completeness",
+            "score": 3,
+            "reasoning": "Updates tokens plus two components, but dark mode support is only available if callers pass `mode` manually; no global/theme-level switching is added. Also doesn’t show updates across the broader component library (likely more components need updates)."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, bullet-pointed summary of each change and why (derived ThemeMode, default light behavior), making it easy to verify."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Defaults to light mode to avoid breaking changes and uses keyed ThemeMode to prevent invalid modes. Does not address broader concerns like ensuring accessible contrast across variants, hover/active states, or a centralized mode propagation mechanism."
+          }
+        ],
+        "overallScore": 3.8333333333333335
+      },
+      "weightedScore": 4.05,
+      "dimensionAverages": {
+        "correctness": 4,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 4,
+        "explanation_quality": 5,
+        "edge_case_handling": 3
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/theme/tokens.ts\n+++ b/src/theme/tokens.ts\n@@ -6,10 +6,18 @@\n     border: '#E0E0E0',\n     accent: '#3B82F6',\n   },\n+  dark: {\n+    background: '#0A0A0A',\n+    foreground: '#FAFAFA',\n+    muted: '#A0A0A0',\n+    border: '#2A2A2A',\n+    accent: '#60A5FA',\n+  },\n };\n \n-export type ThemeMode = 'light';\n+export type ThemeMode = 'light' | 'dark';\n \n export function getColor(mode: ThemeMode, token: keyof typeof colors.light) {\n   return colors[mode][token];\n }\n--- a/src/components/Button.tsx\n+++ b/src/components/Button.tsx\n@@ -1,17 +1,18 @@\n import { ReactNode } from 'react';\n-import { getColor } from '../theme/tokens';\n+import { getColor, ThemeMode } from '../theme/tokens';\n \n interface ButtonProps {\n   children: ReactNode;\n   variant?: 'primary' | 'secondary';\n+  mode?: ThemeMode;\n }\n \n-export function Button({ children, variant = 'primary' }: ButtonProps) {\n+export function Button({ children, variant = 'primary', mode = 'light' }: ButtonProps) {\n   const background =\n-    variant === 'primary' ? getColor('light', 'foreground') : 'transparent';\n+    variant === 'primary' ? getColor(mode, 'foreground') : 'transparent';\n   const color =\n-    variant === 'primary' ? getColor('light', 'background') : getColor('light', 'foreground');\n+    variant === 'primary' ? getColor(mode, 'background') : getColor(mode, 'foreground');\n \n   return (\n     <button\n@@ -19,7 +20,7 @@\n         background,\n         color,\n-        border: `1px solid ${getColor('light', 'border')}`,\n+        border: `1px solid ${getColor(mode, 'border')}`,\n         padding: '8px 16px',\n         borderRadius: 999,\n       }}\n--- a/src/components/Card.tsx\n+++ b/src/components/Card.tsx\n@@ -1,16 +1,19 @@\n import { ReactNode } from 'react';\n-import { getColor } from '../theme/tokens';\n+import { getColor, ThemeMode } from '../theme/tokens';\n \n interface CardProps {\n   children: ReactNode;\n+  mode?: ThemeMode;\n }\n \n-export function Card({ children }: CardProps) {\n+export function Card({ children, mode = 'light' }: CardProps) {\n   return (\n     <div\n       style={{\n-        border: `1px solid ${getColor('light', 'border')}`,\n+        background: getColor(mode, 'background'),\n+        color: getColor(mode, 'foreground'),\n+        border: `1px solid ${getColor(mode, 'border')}`,\n         borderRadius: 12,\n         padding: 16,\n       }}\n```\n\n**Explanation:**\n\n- **Added `dark` color palette** to `tokens.ts` with inverted background/foreground and adjusted muted, border, and accent values for dark contexts.\n- **Widened `ThemeMode`** union type from `'light'` to `'light' | 'dark'` so all consumers can reference either mode.\n- **Added `mode` prop** (defaulting to `'light'`) to both `Button` and `Card`, replacing every hard-coded `'light'` string with the prop so components respect the active theme.\n- **Card now sets `background` and `color`** via tokens so it renders correctly in dark mode instead of inheriting potentially mismatched parent styles.\n- All changes follow the existing pattern of using `getColor(mode, token)` — no new abstractions or dependencies introduced.",
+      "reasoningSummary": "Strengths: correctness (4/5): Adds dark tokens, expands ThemeMode, and updates Button/Card to use the selected mode. Likely compiles and works. Minor concern: Button primary background uses 'foreground' and text uses 'background' (inverted), which may be intentional in this library but is atypical and could produce unexpected styling if the design intended background/accent usage. | style_adherence (4/5): Changes are small and follow the existing tokens/getColor approach. However, introducing a per-component 'mode' prop may diverge from a more typical repo convention (e.g., theme context/provider) if one exists; within the shown code, it’s consistent. | context_utilization (4/5): Reuses existing getColor and token structure appropriately and updates types accordingly. Uses keyof typeof colors.light, which works since dark mirrors light keys; assumes (but does not enforce) parity between palettes. | explanation_quality (5/5): Clearly describes what changed in each file, why, and how it aligns with existing getColor usage. Easy to verify against the diff.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code correctly implements dark mode tokens and updates components to use them. The getColor function works with both modes, and components will render properly in both light and dark themes."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows existing patterns perfectly - uses the same getColor function approach, maintains consistent prop naming, and extends types appropriately without breaking existing conventions."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Excellently leverages the existing theme system by extending the colors object, ThemeMode type, and getColor function. No new abstractions needed - just builds on what's already there."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Addresses the core requirement well by adding dark tokens and updating components consistently. Minor gap: doesn't show how theme mode would be managed at the application level, but the component-level changes are complete."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, well-structured explanation that walks through each change with specific details. Developer can easily verify the changes and understand the reasoning behind each modification."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Good defaults (mode='light') ensure backward compatibility. Dark theme colors are well-chosen for accessibility. Could be improved with contrast ratio considerations or fallback handling, but covers the main production concerns."
+          }
+        ],
+        "overallScore": 4.666666666666667
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 4,
+            "reasoning": "Adds dark tokens, expands ThemeMode, and updates Button/Card to use the selected mode. Likely compiles and works. Minor concern: Button primary background uses 'foreground' and text uses 'background' (inverted), which may be intentional in this library but is atypical and could produce unexpected styling if the design intended background/accent usage."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Changes are small and follow the existing tokens/getColor approach. However, introducing a per-component 'mode' prop may diverge from a more typical repo convention (e.g., theme context/provider) if one exists; within the shown code, it’s consistent."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 4,
+            "reasoning": "Reuses existing getColor and token structure appropriately and updates types accordingly. Uses keyof typeof colors.light, which works since dark mirrors light keys; assumes (but does not enforce) parity between palettes."
+          },
+          {
+            "dimension": "completeness",
+            "score": 3,
+            "reasoning": "Updates tokens and two components, but the task asks for consistent changes across multiple files/components using the theme system. If the library has more components, they remain hard-coded to light. Also no global mechanism to apply dark mode across the library—requires passing mode prop everywhere."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly describes what changed in each file, why, and how it aligns with existing getColor usage. Easy to verify against the diff."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Defaults mode to 'light' and avoids runtime errors for missing prop. Does not enforce that dark has all tokens present (type only references light keys), and does not address broader theming concerns (context propagation, SSR/OS preference, component gaps)."
+          }
+        ],
+        "overallScore": 3.8333333333333335
+      },
+      "weightedScore": 3.6,
+      "dimensionAverages": {
+        "correctness": 4,
+        "style_adherence": 4,
+        "context_utilization": 4,
+        "completeness": 3,
+        "explanation_quality": 5,
+        "edge_case_handling": 3
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 4.05,
+  "interJudgeAgreement": {
+    "alignmentRate": 1
+  }
+}

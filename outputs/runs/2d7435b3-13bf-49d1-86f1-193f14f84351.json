@@ -1,0 +1,216 @@
+{
+  "id": "2d7435b3-13bf-49d1-86f1-193f14f84351",
+  "taskId": "tests-auth-middleware",
+  "taskTitle": "Write Tests for Auth Middleware",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.3-codex",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-17T18:42:00.584Z",
+  "completedAt": "2026-02-17T18:43:31.170Z",
+  "modelResults": {
+    "gpt-5.3-codex": {
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "response": "```diff\ndiff --git a/lib/agent-eval/fixture-repo/tests/auth.middleware.test.ts b/lib/agent-eval/fixture-repo/tests/auth.middleware.test.ts\nindex 2b18f40..8f4f59c 100644\n--- a/lib/agent-eval/fixture-repo/tests/auth.middleware.test.ts\n+++ b/lib/agent-eval/fixture-repo/tests/auth.middleware.test.ts\n@@ -14,6 +14,21 @@ describe('authMiddleware', () => {\n   it('rejects missing token', () => {\n     expect(() => authMiddleware(makeCtx())).toThrow('Missing auth token');\n   });\n+\n+  it.each(['user-123', 'Basic user-123', 'Bearer'])(\n+    'rejects invalid token format: %s',\n+    (authorization) => {\n+      expect(() => authMiddleware(makeCtx(authorization))).toThrow(\n+        'Invalid auth token'\n+      );\n+    }\n+  );\n+\n+  it('throws when headers are missing', () => {\n+    expect(() =>\n+      authMiddleware({} as { headers: Record<string, string | undefined> })\n+    ).toThrow(TypeError);\n+  });\n });\n```\n\n- Added invalid-token format coverage with `it.each` to avoid repetitive test bodies.\n- Covered malformed auth header values (`no Bearer`, wrong scheme, empty bearer payload).\n- Added a missing-`headers` shape test to catch runtime failure when middleware receives bad input.\n- Kept existing happy-path and missing-token assertions intact without duplicating equivalent cases.",
+      "reasoningSummary": "Strengths: correctness (5/5): Code correctly tests invalid token formats and missing headers scenarios, using proper Jest syntax and assertions | style_adherence (5/5): Follows existing test patterns, uses Jest conventions like it.each for parameterized tests, and maintains consistent formatting | context_utilization (5/5): Properly uses existing makeCtx helper function and maintains compatibility with existing test structure and middleware interface | completeness (5/5): Fully addresses the requirement by adding comprehensive invalid token format tests and missing headers test while avoiding redundancy | explanation_quality (4/5): Clear bullet-pointed explanation covers what was added and why, though could be slightly more specific about error expectations | edge_case_handling (5/5): Excellent coverage of edge cases including malformed headers, wrong auth schemes, empty bearer tokens, and completely missing headers object",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code correctly tests invalid token formats and missing headers scenarios, using proper Jest syntax and assertions"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows existing test patterns, uses Jest conventions like it.each for parameterized tests, and maintains consistent formatting"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Properly uses existing makeCtx helper function and maintains compatibility with existing test structure and middleware interface"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the requirement by adding comprehensive invalid token format tests and missing headers test while avoiding redundancy"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Clear bullet-pointed explanation covers what was added and why, though could be slightly more specific about error expectations"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Excellent coverage of edge cases including malformed headers, wrong auth schemes, empty bearer tokens, and completely missing headers object"
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 3,
+            "reasoning": "Invalid token format tests likely work if middleware throws 'Invalid auth token' for those inputs. However, the 'headers are missing' test is brittle: it asserts a TypeError rather than expected middleware behavior (ideally a controlled 'Missing auth token'), and the forced cast may not match actual runtime shapes, risking a failing test that doesn't reflect product requirements."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Uses existing Jest style and keeps tests in the same describe block. `it.each` is a good, non-redundant pattern. Minor concern: asserting raw TypeError feels inconsistent with message-based assertions used elsewhere."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 3,
+            "reasoning": "Reuses `makeCtx` for most cases, which aligns with existing helpers. The missing-headers case bypasses helpers and relies on a cast rather than constructing the closest realistic context shape used by the middleware."
+          },
+          {
+            "dimension": "completeness",
+            "score": 4,
+            "reasoning": "Covers the requested missing header/missing token and invalid token formats, and avoids redundant test bodies via parameterization. Slight gap: missing-header coverage is implemented as a crash expectation rather than verifying graceful handling."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation clearly maps to the added tests and justifies `it.each` for avoiding repetition. It somewhat overstates the value of the missing-headers test as 'catch runtime failure' instead of aligning with desired middleware behavior."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Good inclusion of malformed Authorization values (no Bearer, wrong scheme, empty Bearer). Missing headers is an edge case, but the test expects a generic TypeError, which is less production-oriented than asserting a controlled error path."
+          }
+        ],
+        "overallScore": 3.6666666666666665
+      },
+      "weightedScore": 4.75,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 4,
+        "edge_case_handling": 5
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": false,
+          "style_adherence": true,
+          "context_utilization": false,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 0.6666666666666666
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- tests/auth.middleware.test.ts\n+++ tests/auth.middleware.test.ts\n@@ -1,4 +1,5 @@\n import { authMiddleware } from '../src/middleware/auth';\n+import { validateToken } from '../src/utils/token';\n \n function makeCtx(authorization?: string) {\n   return {\n@@ -6,6 +7,10 @@\n   };\n }\n \n+jest.mock('../src/utils/token', () => ({\n+  validateToken: jest.fn(),\n+}));\n+\n describe('authMiddleware', () => {\n   it('allows valid token', () => {\n     const ctx = authMiddleware(makeCtx('Bearer user-123'));\n@@ -15,4 +20,32 @@\n   it('rejects missing token', () => {\n     expect(() => authMiddleware(makeCtx())).toThrow('Missing auth token');\n   });\n+\n+  it('rejects undefined authorization header', () => {\n+    expect(() => authMiddleware({ headers: {} })).toThrow('Missing auth token');\n+  });\n+\n+  it('rejects empty string token', () => {\n+    expect(() => authMiddleware(makeCtx(''))).toThrow('Missing auth token');\n+  });\n+\n+  it('rejects invalid token when validateToken returns null', () => {\n+    (validateToken as jest.Mock).mockReturnValue(null);\n+    expect(() => authMiddleware(makeCtx('Bearer bad-token'))).toThrow('Invalid auth token');\n+  });\n+\n+  it('rejects invalid token when validateToken returns undefined', () => {\n+    (validateToken as jest.Mock).mockReturnValue(undefined);\n+    expect(() => authMiddleware(makeCtx('some-garbage'))).toThrow('Invalid auth token');\n+  });\n+\n+  it('rejects invalid token when validateToken returns empty string', () => {\n+    (validateToken as jest.Mock).mockReturnValue('');\n+    expect(() => authMiddleware(makeCtx('Bearer expired'))).toThrow('Invalid auth token');\n+  });\n+\n+  it('sets userId on context for a valid token', () => {\n+    (validateToken as jest.Mock).mockReturnValue('user-456');\n+    const ctx = makeCtx('Bearer valid-token');\n+    const result = authMiddleware(ctx);\n+    expect(result.userId).toBe('user-456');\n+    expect(result).toBe(ctx);\n+  });\n });\n```\n\n**Explanation:**\n\n- **Mocks `validateToken`** so tests control its return value and focus purely on middleware logic rather than token-parsing internals.\n- **Empty string token** — covers the edge case where the header exists but is falsy (`\"\"` is falsy in JS, triggering `Missing auth token`).\n- **`validateToken` returning `null`, `undefined`, or `\"\"`** — exercises the three falsy outcomes that should produce `Invalid auth token`, catching bugs where only one case is handled.\n- **Missing key in headers object** (`{}`) — ensures the middleware doesn't rely on the key being present vs. being `undefined`.\n- **Return value identity check** — confirms the middleware mutates and returns the *same* context object with `userId` attached, not a copy.",
+      "reasoningSummary": "Strengths: style_adherence (4/5): Uses Jest patterns consistent with typical TS repos (describe/it, jest.mock, makeCtx helper). Test naming is clear. Minor concern: mixing makeCtx with inline ctx object ({ headers: {} }) is slightly inconsistent. | explanation_quality (4/5): Explanation is understandable and maps to the new tests. However, it claims to avoid token-parsing internals while adding multiple validateToken-return-value permutations, and it doesn’t justify why those are the most relevant invalid-format tests.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Code properly mocks dependencies, tests all edge cases thoroughly, and uses correct Jest patterns without introducing bugs"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Follows existing test structure, naming conventions, and Jest patterns consistently with the codebase"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Appropriately mocks validateToken utility, uses existing makeCtx helper, and respects the middleware's API contract"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Comprehensively covers missing headers, invalid tokens, empty strings, and various falsy return values from validateToken"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clear, detailed explanation of each test case's purpose with specific rationale for edge cases and mocking strategy"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 5,
+            "reasoning": "Excellent coverage of edge cases including empty strings, missing headers, null/undefined returns, and object identity verification"
+          }
+        ],
+        "overallScore": 5
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 3,
+            "reasoning": "Some tests likely work, but there are risks: the existing 'allows valid token' test now implicitly depends on a mocked validateToken (never given a return value), so it may fail unless authMiddleware doesn’t call validateToken on that path. Also the expected error for empty string header ('Missing auth token') may not match actual middleware behavior (it might be treated as invalid format instead)."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 4,
+            "reasoning": "Uses Jest patterns consistent with typical TS repos (describe/it, jest.mock, makeCtx helper). Test naming is clear. Minor concern: mixing makeCtx with inline ctx object ({ headers: {} }) is slightly inconsistent."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 3,
+            "reasoning": "Mocks validateToken without showing that authMiddleware actually imports and uses it from that path; if the middleware validates differently (e.g., inline parsing or a different util), these tests won’t reflect real behavior. Also doesn’t use any existing error types/messages beyond string matching assumptions."
+          },
+          {
+            "dimension": "completeness",
+            "score": 3,
+            "reasoning": "Adds coverage for missing headers and some invalid cases, but misses key invalid-format scenarios the prompt calls out (e.g., 'Bearer' with no token, wrong scheme like 'Basic', extra/malformed parts). Also introduces redundant variants (null/undefined/empty string) that may not be necessary compared to format-focused cases."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 4,
+            "reasoning": "Explanation is understandable and maps to the new tests. However, it claims to avoid token-parsing internals while adding multiple validateToken-return-value permutations, and it doesn’t justify why those are the most relevant invalid-format tests."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 3,
+            "reasoning": "Covers missing header key and some falsy/invalid validation outputs, but doesn’t directly test invalid Authorization formats (wrong prefix, missing space, multiple spaces, 'Bearer' only), which are common real-world failure modes and explicitly requested."
+          }
+        ],
+        "overallScore": 3.3333333333333335
+      },
+      "weightedScore": 3.45,
+      "dimensionAverages": {
+        "correctness": 3,
+        "style_adherence": 4,
+        "context_utilization": 3,
+        "completeness": 3,
+        "explanation_quality": 4,
+        "edge_case_handling": 3
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": false,
+          "style_adherence": true,
+          "context_utilization": false,
+          "completeness": false,
+          "explanation_quality": true,
+          "edge_case_handling": false
+        },
+        "alignmentRate": 0.3333333333333333
+      }
+    }
+  },
+  "winner": "gpt-5.3-codex",
+  "winnerScore": 4.75,
+  "interJudgeAgreement": {
+    "alignmentRate": 0.5
+  }
+}
