@@ -1,372 +1,257 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { RadarChart } from '@/components/agent-eval/radar-chart';
-import { useAgentEvalStore } from '@/store/agent-eval-store';
 
-function InsightCard({
-  number,
-  title,
-  children,
-  implication,
-}: {
-  number: number;
-  title: string;
-  children: React.ReactNode;
-  implication: string;
-}) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-8">
-      <div className="mb-2 text-xs font-medium text-gray-400">Finding {number}</div>
-      <h3 className="text-xl font-semibold text-black">{title}</h3>
-      <div className="mt-4 text-sm leading-relaxed text-gray-600">
-        {children}
-      </div>
-      <div className="mt-6 rounded-md bg-gray-50 p-4">
-        <div className="mb-1 text-[10px] font-medium uppercase tracking-widest text-gray-400">
-          Product implication
-        </div>
-        <p className="text-sm text-gray-700">{implication}</p>
-      </div>
-    </div>
-  );
-}
+// ── Hardcoded data from 16 eval runs ──
 
-function DimensionBar({ label, codex, claude }: { label: string; codex: number; claude: number }) {
-  const gap = codex - claude;
-  return (
-    <div className="flex items-center gap-4 text-sm">
-      <div className="w-36 text-gray-600">{label}</div>
-      <div className="flex flex-1 items-center gap-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <div
-              className="h-2 rounded-full bg-blue-500"
-              style={{ width: `${(codex / 5) * 100}%` }}
-            />
-            <span className="font-mono text-xs text-blue-600">{codex.toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <div
-              className="h-2 rounded-full bg-gray-800"
-              style={{ width: `${(claude / 5) * 100}%` }}
-            />
-            <span className="font-mono text-xs text-gray-600">{claude.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-      <div className="w-16 text-right font-mono text-xs text-gray-400">
-        +{gap.toFixed(2)}
-      </div>
-    </div>
-  );
-}
+const CODEX_WINS = 14;
+const CLAUDE_WINS = 2;
+const TOTAL_RUNS = 16;
+const AVG_GAP = 0.82;
 
-function EvidenceLinks({
-  runIds,
-  runTitleById,
-}: {
-  runIds: string[];
-  runTitleById: Record<string, string>;
-}) {
+const CODEX_DIMS: Record<string, number> = {
+  context_utilization: 4.88,
+  correctness: 4.75,
+  edge_case_handling: 4.25,
+  completeness: 4.69,
+  style_adherence: 4.75,
+  explanation_quality: 4.81,
+};
+
+const CLAUDE_DIMS: Record<string, number> = {
+  context_utilization: 3.56,
+  correctness: 3.75,
+  edge_case_handling: 3.31,
+  completeness: 3.81,
+  style_adherence: 4.00,
+  explanation_quality: 4.50,
+};
+
+const CONTEXT_GAP = CODEX_DIMS.context_utilization - CLAUDE_DIMS.context_utilization;
+const EXPLANATION_GAP = CODEX_DIMS.explanation_quality - CLAUDE_DIMS.explanation_quality;
+
+const RADAR_DATA = {
+  'gpt-5.3-codex': {
+    modelId: 'gpt-5.3-codex',
+    displayName: 'GPT-5.3 Codex',
+    dimensionAverages: CODEX_DIMS,
+  },
+  'claude-opus-4-6': {
+    modelId: 'claude-opus-4-6',
+    displayName: 'Claude Opus 4.6',
+    dimensionAverages: CLAUDE_DIMS,
+  },
+};
+
+const AGENT_LOOP_DELTAS = [
+  {
+    task: 'Review Caching Layer PR',
+    singleShot: 3.55,
+    agentLoop: 4.75,
+    delta: 1.20,
+    singleShotRunId: '0c4948c4-dbee-45a2-bc94-5aaf04102d04',
+    runId: '2d97e235-30dc-461c-9435-b5dba144c3aa',
+  },
+  {
+    task: 'Refactor Callbacks to Async/Await',
+    singleShot: 2.45,
+    agentLoop: 3.50,
+    delta: 1.05,
+    singleShotRunId: '10608145-5e70-4077-a417-75fadc66030d',
+    runId: '5fccd0ae-f8f0-4719-ac07-d7f637e8a491',
+  },
+  {
+    task: 'Debug Memory Leak in WebSocket Handler',
+    singleShot: 3.05,
+    agentLoop: 3.80,
+    delta: 0.75,
+    singleShotRunId: '3c6501c0-9b6f-4562-afd6-eec860f44683',
+    runId: '3a64f713-bf3f-4bfb-b0bb-90dbf8127069',
+  },
+];
+
+const AGREEMENT = { shipFast: 100, devTrust: 76 };
+
+const DIM_AGREEMENT: Record<string, number> = {
+  explanation_quality: 94,
+  style_adherence: 84,
+  correctness: 81,
+  completeness: 81,
+  edge_case_handling: 81,
+  context_utilization: 62,
+};
+
+const BIAS_STATS = {
+  claudePrimaryMinusSecondary: 1.33,
+  codexPrimaryMinusSecondary: -0.25,
+};
+
+const EVIDENCE = {
+  finding1: [
+    'a4f54b5b-dc75-46d6-aa47-919c427e0304',
+    '090a3a64-ca37-4131-b878-bdff8d32fdad',
+    'e3a84e03-5f24-435f-b5cf-57fcd8bcb463',
+  ],
+  finding2: [
+    '0c4948c4-dbee-45a2-bc94-5aaf04102d04',
+    '2d97e235-30dc-461c-9435-b5dba144c3aa',
+    '10608145-5e70-4077-a417-75fadc66030d',
+    '5fccd0ae-f8f0-4719-ac07-d7f637e8a491',
+  ],
+  finding3: ['10608145-5e70-4077-a417-75fadc66030d'],
+  methodology: [
+    'e7b91243-801b-45ea-96e5-8abf6a4883eb',
+    '90c16c1e-803c-4227-a6d3-60a5a905ab46',
+  ],
+};
+
+const RUN_TITLES: Record<string, string> = {
+  'a4f54b5b-dc75-46d6-aa47-919c427e0304': 'Off-by-One Bugfix (single shot, developer trust)',
+  '090a3a64-ca37-4131-b878-bdff8d32fdad': 'Optimize DB Query (single shot, developer trust)',
+  'e3a84e03-5f24-435f-b5cf-57fcd8bcb463': 'Off-by-One Bugfix (single shot, ship fast)',
+  '0c4948c4-dbee-45a2-bc94-5aaf04102d04': 'Caching PR Review (single shot, developer trust)',
+  '2d97e235-30dc-461c-9435-b5dba144c3aa': 'Caching PR Review (agent loop, developer trust)',
+  '10608145-5e70-4077-a417-75fadc66030d': 'Refactor Callbacks (single shot, developer trust)',
+  '5fccd0ae-f8f0-4719-ac07-d7f637e8a491': 'Refactor Callbacks (agent loop, developer trust)',
+  '3c6501c0-9b6f-4562-afd6-eec860f44683': 'Memory Leak (single shot, developer trust)',
+  '3a64f713-bf3f-4bfb-b0bb-90dbf8127069': 'Memory Leak (agent loop, developer trust)',
+  'e7b91243-801b-45ea-96e5-8abf6a4883eb': 'Dark Mode (single shot, developer trust)',
+  '90c16c1e-803c-4227-a6d3-60a5a905ab46': 'Dark Mode (single shot, ship fast)',
+};
+
+// ── Components ──
+
+function EvidenceLinks({ runIds }: { runIds: string[] }) {
   if (runIds.length === 0) return null;
-
   return (
-    <div className="mt-4 rounded-md border border-gray-200 bg-white p-3">
-      <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-gray-400">
-        Evidence
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        {runIds.map((id) => (
-          <a
-            key={id}
-            href={`/agent-eval/results?runId=${id}`}
-            className="rounded border border-gray-200 px-2 py-1 text-gray-600 transition-colors hover:border-gray-400 hover:text-black"
-          >
-            {runTitleById[id] || 'Run'} · {id.slice(0, 8)}
-          </a>
-        ))}
-      </div>
+    <div className="mt-4 flex flex-wrap gap-2 text-xs">
+      <span className="text-[10px] font-medium uppercase tracking-widest text-gray-400">Evidence:</span>
+      {runIds.map((id) => (
+        <a
+          key={id}
+          href={`/agent-eval/results?runId=${id}`}
+          className="rounded border border-gray-200 px-2 py-0.5 text-gray-500 transition-colors hover:border-gray-400 hover:text-black"
+        >
+          {RUN_TITLES[id] || 'Run'} · {id.slice(0, 8)}
+        </a>
+      ))}
     </div>
   );
 }
+
+// ── Page ──
 
 export default function InsightsPage() {
-  const { savedRuns, loadRuns } = useAgentEvalStore();
-
-  useEffect(() => { loadRuns(); }, [loadRuns]);
-
-  // Aggregate scores across all runs for the two primary models
-  const aggregated = useMemo(() => {
-    const codexScores: Record<string, number[]> = {};
-    const claudeScores: Record<string, number[]> = {};
-
-    for (const run of savedRuns) {
-      for (const [modelId, result] of Object.entries(run.modelResults)) {
-        const target = modelId === 'gpt-5.3-codex' ? codexScores : modelId === 'claude-opus-4-6' ? claudeScores : null;
-        if (!target) continue;
-        for (const [dim, score] of Object.entries(result.dimensionAverages)) {
-          if (!target[dim]) target[dim] = [];
-          target[dim].push(score);
-        }
-      }
-    }
-
-    const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-
-    return {
-      codex: Object.fromEntries(Object.entries(codexScores).map(([k, v]) => [k, avg(v)])),
-      claude: Object.fromEntries(Object.entries(claudeScores).map(([k, v]) => [k, avg(v)])),
-    };
-  }, [savedRuns]);
-
-  // Build radar data for comparison
-  const radarData = useMemo(() => {
-    return {
-      'gpt-5.3-codex': {
-        modelId: 'gpt-5.3-codex',
-        displayName: 'GPT-5.3 Codex',
-        dimensionAverages: aggregated.codex as Record<string, number>,
-      },
-      'claude-opus-4-6': {
-        modelId: 'claude-opus-4-6',
-        displayName: 'Claude Opus 4.6',
-        dimensionAverages: aggregated.claude as Record<string, number>,
-      },
-    };
-  }, [aggregated]);
-
-  // Count head-to-head wins
-  const headToHead = savedRuns.filter(r => r.models.includes('gpt-5.3-codex') && r.models.includes('claude-opus-4-6'));
-  const codexWins = headToHead.filter(r => r.winner === 'gpt-5.3-codex').length;
-  const claudeWins = headToHead.filter(r => r.winner === 'claude-opus-4-6').length;
-  const observedTaskCount = new Set(savedRuns.map((run) => run.taskId)).size;
-
-  // Compute average gap
-  const avgGap = useMemo(() => {
-    if (headToHead.length === 0) return 0;
-    const gaps = headToHead.map(r => {
-      const cxScore = r.modelResults['gpt-5.3-codex']?.weightedScore || 0;
-      const clScore = r.modelResults['claude-opus-4-6']?.weightedScore || 0;
-      return cxScore - clScore;
-    });
-    return gaps.reduce((a, b) => a + b, 0) / gaps.length;
-  }, [headToHead]);
-
-  // Agent loop runs
-  const agentLoopRuns = savedRuns.filter(r => r.mode === 'agent_loop');
-  const singleShotRuns = savedRuns.filter(r => r.mode === 'single_shot');
-
-  // Agent loop deltas for Claude
-  const agentLoopDeltas = useMemo(() => {
-    return agentLoopRuns.map(alr => {
-      const matchingSS = singleShotRuns.find(
-        ss => ss.taskTitle === alr.taskTitle && ss.weightPreset === alr.weightPreset
-      );
-      if (!matchingSS) return null;
-      const alClaude = alr.modelResults['claude-opus-4-6']?.weightedScore || 0;
-      const ssClaude = matchingSS.modelResults['claude-opus-4-6']?.weightedScore || 0;
-      return {
-        runId: alr.id,
-        singleShotRunId: matchingSS.id,
-        task: alr.taskTitle,
-        singleShot: ssClaude,
-        agentLoop: alClaude,
-        delta: alClaude - ssClaude,
-      };
-    }).filter(Boolean) as {
-      runId: string;
-      singleShotRunId: string;
-      task: string;
-      singleShot: number;
-      agentLoop: number;
-      delta: number;
-    }[];
-  }, [agentLoopRuns, singleShotRuns]);
-
-  // Judge agreement by preset
-  const agreementByPreset = useMemo(() => {
-    const sf: number[] = [];
-    const dt: number[] = [];
-    for (const run of savedRuns) {
-      for (const mdata of Object.values(run.modelResults)) {
-        const rate = (mdata as { agreement?: { alignmentRate?: number } }).agreement?.alignmentRate;
-        if (rate == null) continue;
-        if (run.weightPreset === 'ship_fast') sf.push(rate);
-        else dt.push(rate);
-      }
-    }
-    return {
-      shipFast: sf.length > 0 ? (sf.reduce((a, b) => a + b, 0) / sf.length * 100) : 0,
-      devTrust: dt.length > 0 ? (dt.reduce((a, b) => a + b, 0) / dt.length * 100) : 0,
-    };
-  }, [savedRuns]);
-
-  // Per-dimension agreement
-  const dimAgreement = useMemo(() => {
-    const counts: Record<string, { agree: number; total: number }> = {};
-    for (const run of savedRuns) {
-      for (const mdata of Object.values(run.modelResults)) {
-        const aligned = (mdata as { agreement?: { alignedDimensions?: Record<string, boolean> } }).agreement?.alignedDimensions;
-        if (!aligned) continue;
-        for (const [dim, val] of Object.entries(aligned)) {
-          if (!counts[dim]) counts[dim] = { agree: 0, total: 0 };
-          counts[dim].total++;
-          if (val) counts[dim].agree++;
-        }
-      }
-    }
-    return Object.fromEntries(
-      Object.entries(counts).map(([dim, { agree, total }]) => [dim, Math.round((agree / total) * 100)])
-    );
-  }, [savedRuns]);
-
-  const dimensionGaps = useMemo(() => {
-    const contextGap = (aggregated.codex.context_utilization || 0) - (aggregated.claude.context_utilization || 0);
-    const explanationGap = (aggregated.codex.explanation_quality || 0) - (aggregated.claude.explanation_quality || 0);
-    return { contextGap, explanationGap };
-  }, [aggregated]);
-
-  const runTitleById = useMemo(
-    () =>
-      Object.fromEntries(
-        savedRuns.map((run) => [
-          run.id,
-          `${run.taskTitle} (${run.mode.replace('_', ' ')}, ${run.weightPreset.replace('_', ' ')})`,
-        ])
-      ),
-    [savedRuns]
-  );
-
-  const evidence = useMemo(() => {
-    const byAbsMargin = [...headToHead].sort((a, b) => {
-      const aGap = Math.abs((a.modelResults['gpt-5.3-codex']?.weightedScore || 0) - (a.modelResults['claude-opus-4-6']?.weightedScore || 0));
-      const bGap = Math.abs((b.modelResults['gpt-5.3-codex']?.weightedScore || 0) - (b.modelResults['claude-opus-4-6']?.weightedScore || 0));
-      return bGap - aGap;
-    });
-    const claudeWin = headToHead.find((r) => r.winner === 'claude-opus-4-6');
-    const highestAgreement = [...headToHead].sort((a, b) => b.interJudgeAgreement.alignmentRate - a.interJudgeAgreement.alignmentRate)[0];
-    const lowestAgreement = [...headToHead].sort((a, b) => a.interJudgeAgreement.alignmentRate - b.interJudgeAgreement.alignmentRate)[0];
-
-    let explanationVsCorrectnessRun: string | null = null;
-    let biggestGap = -Infinity;
-    for (const run of headToHead) {
-      const claude = run.modelResults['claude-opus-4-6'];
-      if (!claude) continue;
-      const diff = (claude.dimensionAverages.explanation_quality || 0) - (claude.dimensionAverages.correctness || 0);
-      if (diff > biggestGap) {
-        biggestGap = diff;
-        explanationVsCorrectnessRun = run.id;
-      }
-    }
-
-    return {
-      finding1: [byAbsMargin[0]?.id, byAbsMargin[1]?.id, claudeWin?.id].filter(Boolean) as string[],
-      finding2: agentLoopDeltas.slice(0, 2).flatMap((d) => [d.singleShotRunId, d.runId]),
-      finding3: [highestAgreement?.id, lowestAgreement?.id].filter(Boolean) as string[],
-      finding4: explanationVsCorrectnessRun ? [explanationVsCorrectnessRun] : [],
-      finding5: [highestAgreement?.id, lowestAgreement?.id].filter(Boolean) as string[],
-    };
-  }, [headToHead, agentLoopDeltas]);
-
-  const biasStats = useMemo(() => {
-    const claudeDeltas: number[] = [];
-    const codexDeltas: number[] = [];
-    for (const run of headToHead) {
-      const claude = run.modelResults['claude-opus-4-6'];
-      const codex = run.modelResults['gpt-5.3-codex'];
-      if (claude) claudeDeltas.push(claude.primary.overallScore - claude.secondary.overallScore);
-      if (codex) codexDeltas.push(codex.primary.overallScore - codex.secondary.overallScore);
-    }
-    const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-    return {
-      claudePrimaryMinusSecondary: avg(claudeDeltas),
-      codexPrimaryMinusSecondary: avg(codexDeltas),
-    };
-  }, [headToHead]);
+  const [showMethodology, setShowMethodology] = useState(false);
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-16">
-      <div className="mb-16">
-        <div className="mb-3 text-xs font-medium uppercase tracking-widest text-gray-400">
-          Analysis
-        </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-black">
-          Insights
+    <div className="mx-auto max-w-3xl px-6 py-10">
+
+      {/* ── ABOVE THE FOLD: Summary ── */}
+      <div className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight text-black">
+          Codex wins {CODEX_WINS} of {TOTAL_RUNS} head-to-head runs
         </h1>
-        <p className="mt-3 text-lg text-gray-500">
-          Synthesized findings from {savedRuns.length} evaluation runs across {observedTaskCount} coding tasks.
-          Head-to-head: GPT-5.3 Codex wins {codexWins}, Claude Opus 4.6 wins {claudeWins}.
-          Average gap: {avgGap.toFixed(2)} points.
+        <p className="mt-2 text-base text-gray-500">
+          Average margin: +{AVG_GAP.toFixed(2)} points.
+          GPT-5.3 Codex vs Claude Opus 4.6, scored by cross-provider dual judges (Claude Sonnet 4 + GPT-5.2) across 10 coding tasks and 6 dimensions.
         </p>
       </div>
 
-      <div className="space-y-12">
-        {/* Finding 1: Codex wins 14-2 */}
-        <InsightCard
-          number={1}
-          title={`Codex wins ${codexWins} of ${headToHead.length}, but the why matters more than the score`}
-          implication="Codex wins on trust, not intelligence. It makes conservative, verifiable changes: exactly what you want from an agent you delegate to. The product advantage is behavioral, not capability-based."
-        >
-          <div className="mb-6 grid grid-cols-3 gap-4">
-            <div className="rounded-md border border-gray-200 p-4 text-center">
-              <div className="text-3xl font-semibold text-blue-600">{codexWins}</div>
-              <div className="mt-1 text-xs text-gray-500">Codex wins</div>
-            </div>
-            <div className="rounded-md border border-gray-200 p-4 text-center">
-              <div className="text-3xl font-semibold text-gray-800">{claudeWins}</div>
-              <div className="mt-1 text-xs text-gray-500">Claude wins</div>
-            </div>
-            <div className="rounded-md border border-gray-200 p-4 text-center">
-              <div className="text-3xl font-semibold text-gray-400">{avgGap.toFixed(2)}</div>
-              <div className="mt-1 text-xs text-gray-500">Avg gap</div>
-            </div>
-          </div>
+      {/* Scoreboard */}
+      <div className="mb-10 grid grid-cols-4 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200">
+        <div className="bg-white px-4 py-4 text-center">
+          <div className="text-3xl font-bold text-blue-600">{CODEX_WINS}</div>
+          <div className="mt-0.5 text-xs text-gray-500">Codex wins</div>
+        </div>
+        <div className="bg-white px-4 py-4 text-center">
+          <div className="text-3xl font-bold text-gray-800">{CLAUDE_WINS}</div>
+          <div className="mt-0.5 text-xs text-gray-500">Claude wins</div>
+        </div>
+        <div className="bg-white px-4 py-4 text-center">
+          <div className="text-3xl font-bold text-gray-400">{TOTAL_RUNS}</div>
+          <div className="mt-0.5 text-xs text-gray-500">Total runs</div>
+        </div>
+        <div className="bg-white px-4 py-4 text-center">
+          <div className="text-3xl font-bold text-gray-400">+{AVG_GAP.toFixed(2)}</div>
+          <div className="mt-0.5 text-xs text-gray-500">Avg margin</div>
+        </div>
+      </div>
 
-          <div className="mb-6 rounded-md border border-gray-100 p-4">
+      {/* 3 Product Bets (summary) */}
+      <div className="mb-10 rounded-lg border border-gray-200 bg-white">
+        <div className="border-b border-gray-100 px-5 py-3">
+          <h2 className="text-sm font-semibold text-black">Three product bets from these findings</h2>
+        </div>
+        <div className="divide-y divide-gray-100">
+          <div className="flex items-start gap-3 px-5 py-3">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">1</span>
+            <p className="text-sm text-gray-700"><strong>Context is the moat.</strong> Codex leads context utilization by +{CONTEXT_GAP.toFixed(2)}. Make it visible in the UX.</p>
+          </div>
+          <div className="flex items-start gap-3 px-5 py-3">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">2</span>
+            <p className="text-sm text-gray-700"><strong>Task-adaptive agent loops.</strong> Mandatory for code review; optional for generation.</p>
+          </div>
+          <div className="flex items-start gap-3 px-5 py-3">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">3</span>
+            <p className="text-sm text-gray-700"><strong>Trust surface &gt; capability surface.</strong> Diff-first UI, confidence signals, progressive delegation.</p>
+          </div>
+        </div>
+        <div className="border-t border-gray-100 px-5 py-3">
+          <a
+            href="https://github.com/ashstep2/agent-eval-harness/blob/master/PRODUCT_STRATEGY.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 transition-colors hover:text-black"
+          >
+            Full analysis in the product strategy doc →
+          </a>
+        </div>
+      </div>
+
+      {/* ── DIVIDER ── */}
+      <div className="mb-10 border-t border-gray-200" />
+
+      {/* ── BELOW THE FOLD: Detailed Findings ── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-medium uppercase tracking-widest text-gray-400">Detailed findings</h2>
+      </div>
+
+      <div className="space-y-10">
+
+        {/* Finding 1 */}
+        <section>
+          <div className="mb-1 text-xs font-medium text-gray-400">Finding 1</div>
+          <h3 className="mb-3 text-lg font-semibold text-black">Codex wins on trust, not intelligence</h3>
+
+          <div className="mb-4 rounded-md border border-gray-100 bg-white p-4">
             {/* @ts-expect-error radar expects AgentModelResult but we're passing a subset */}
-            <RadarChart results={radarData} size={280} />
+            <RadarChart results={RADAR_DATA} size={260} />
           </div>
 
-          <div className="space-y-3">
-            <div className="mb-2 flex items-center gap-3 text-xs text-gray-400">
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> GPT-5.3 Codex</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-gray-800" /> Claude Opus 4.6</span>
-              <span className="ml-auto">Gap</span>
-            </div>
-            <DimensionBar label="Context" codex={aggregated.codex.context_utilization || 0} claude={aggregated.claude.context_utilization || 0} />
-            <DimensionBar label="Correctness" codex={aggregated.codex.correctness || 0} claude={aggregated.claude.correctness || 0} />
-            <DimensionBar label="Edge Cases" codex={aggregated.codex.edge_case_handling || 0} claude={aggregated.claude.edge_case_handling || 0} />
-            <DimensionBar label="Completeness" codex={aggregated.codex.completeness || 0} claude={aggregated.claude.completeness || 0} />
-            <DimensionBar label="Style" codex={aggregated.codex.style_adherence || 0} claude={aggregated.claude.style_adherence || 0} />
-            <DimensionBar label="Explanation" codex={aggregated.codex.explanation_quality || 0} claude={aggregated.claude.explanation_quality || 0} />
+          <p className="mb-2 text-sm leading-relaxed text-gray-600">
+            Largest gap: <strong>context utilization</strong> (+{CONTEXT_GAP.toFixed(2)}).
+            Narrowest gap: <strong>explanation quality</strong> (+{EXPLANATION_GAP.toFixed(2)}), Claude&apos;s relative strength.
+            Codex leads every dimension, but the advantage concentrates on &quot;trust&quot; dimensions where conservative, accurate changes matter most.
+          </p>
+
+          <div className="rounded-md bg-gray-50 px-4 py-3">
+            <div className="text-[10px] font-medium uppercase tracking-widest text-gray-400">Product implication</div>
+            <p className="mt-1 text-sm text-gray-700">
+              The advantage is behavioral, not capability-based. Codex makes conservative, verifiable changes. The product moat is trust. Make context utilization visible in the UX.
+            </p>
           </div>
-          <p className="mt-4">
-            The narrowest gap is <strong>explanation quality</strong> ({dimensionGaps.explanationGap >= 0 ? '+' : ''}
-            {dimensionGaps.explanationGap.toFixed(2)}), Opus&apos;s relative strength.
-            The widest is <strong>context utilization</strong> ({dimensionGaps.contextGap >= 0 ? '+' : ''}
-            {dimensionGaps.contextGap.toFixed(2)}). Codex leads on every dimension, but
-            the pattern reveals that its advantage is largest on &quot;trust&quot; dimensions (context, correctness)
-            where conservative, accurate changes matter most.
-          </p>
-          <EvidenceLinks runIds={evidence.finding1} runTitleById={runTitleById} />
-        </InsightCard>
 
-        {/* Finding 2: Agent Loops */}
-        <InsightCard
-          number={2}
-          title="Agent loops fix hallucination but not judgment"
-          implication="Agent loops should be mandatory for code review (where hallucination is the primary risk) and optional for code generation (where the model needs to make judgment calls that don't improve with more steps)."
-        >
-          <p className="mb-4">
-            {agentLoopDeltas.length} task{agentLoopDeltas.length === 1 ? '' : 's'} were run in both single-shot and 5-step agent loop mode.
-            The loop often improves score quality, but the <em>type</em> of
-            improvement reveals a critical distinction.
-          </p>
+          <EvidenceLinks runIds={EVIDENCE.finding1} />
+        </section>
 
-          <div className="mb-4 overflow-hidden rounded-md border border-gray-200">
+        {/* Finding 2 */}
+        <section>
+          <div className="mb-1 text-xs font-medium text-gray-400">Finding 2</div>
+          <h3 className="mb-3 text-lg font-semibold text-black">Agent loops fix hallucination but not judgment</h3>
+
+          <div className="mb-3 overflow-hidden rounded-md border border-gray-200">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
@@ -377,7 +262,7 @@ export default function InsightsPage() {
                 </tr>
               </thead>
               <tbody>
-                {agentLoopDeltas.map((d) => (
+                {AGENT_LOOP_DELTAS.map((d) => (
                   <tr key={d.task} className="border-b border-gray-50">
                     <td className="px-4 py-2 text-gray-700">{d.task}</td>
                     <td className="px-4 py-2 text-right font-mono text-gray-500">{d.singleShot.toFixed(2)}</td>
@@ -389,172 +274,128 @@ export default function InsightsPage() {
             </table>
           </div>
 
-          <div className="space-y-3">
-            {agentLoopDeltas.length > 0 && (
-              <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                <div className="text-xs font-medium text-gray-700">
-                  Best observed loop gain: {agentLoopDeltas[0].task} (+{agentLoopDeltas[0].delta.toFixed(2)})
-                </div>
-                <div className="mt-1 text-xs text-gray-600">
-                  Agent loop can recover from some first-pass errors, but gains vary by task.
-                </div>
-              </div>
-            )}
-          </div>
-          <EvidenceLinks runIds={evidence.finding2} runTitleById={runTitleById} />
-        </InsightCard>
-
-        {/* Finding 3: Judge Agreement */}
-        <InsightCard
-          number={3}
-          title="Judges agree more when the question is objective"
-          implication="Invest in objective eval dimensions first. For subjective dimensions (context, style), product design (not model training) determines the user experience. Consider letting users configure which dimensions they care about."
-        >
-          <p className="mb-4">
-            Ship_fast runs show <strong>{agreementByPreset.shipFast.toFixed(0)}%</strong> judge agreement.
-            Developer_trust runs: <strong>{agreementByPreset.devTrust.toFixed(0)}%</strong>.
-            The pattern is clear: judges agree on objective questions and diverge on subjective ones.
+          <p className="mb-2 text-sm leading-relaxed text-gray-600">
+            Caching PR review: loop caught a hallucinated bug (+{AGENT_LOOP_DELTAS[0].delta.toFixed(2)}).
+            Refactor task: same API-breaking flaw persisted across all 5 steps (+{AGENT_LOOP_DELTAS[1].delta.toFixed(2)}).
           </p>
 
-          <div className="space-y-2">
-            {[
-              { dim: 'Explanation Quality', key: 'explanation_quality', color: 'text-emerald-600' },
-              { dim: 'Style Adherence', key: 'style_adherence', color: 'text-emerald-600' },
-              { dim: 'Correctness', key: 'correctness', color: 'text-emerald-600' },
-              { dim: 'Completeness', key: 'completeness', color: 'text-emerald-600' },
-              { dim: 'Edge Cases', key: 'edge_case_handling', color: 'text-gray-600' },
-              { dim: 'Context Utilization', key: 'context_utilization', color: 'text-amber-600' },
-            ].sort((a, b) => (dimAgreement[b.key] || 0) - (dimAgreement[a.key] || 0))
-              .map((item) => {
-                const rate = dimAgreement[item.key] || 0;
-                const color = rate >= 85 ? 'text-emerald-600' : rate >= 75 ? 'text-gray-600' : 'text-amber-600';
-                const label = rate >= 85 ? 'High' : rate >= 75 ? 'Moderate' : 'Low';
-                return (
-                  <div key={item.dim} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">{item.dim}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-24 rounded-full bg-gray-100">
-                        <div
-                          className="h-1.5 rounded-full bg-gray-800"
-                          style={{ width: `${rate}%` }}
-                        />
-                      </div>
-                      <span className="w-10 font-mono text-xs text-gray-500">{rate}%</span>
-                      <span className={`w-16 text-xs ${color}`}>{label}</span>
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="rounded-md bg-gray-50 px-4 py-3">
+            <div className="text-[10px] font-medium uppercase tracking-widest text-gray-400">Product implication</div>
+            <p className="mt-1 text-sm text-gray-700">
+              Make loops task-adaptive: mandatory for code review (eliminates hallucination), optional for generation (judgment errors persist regardless of step count).
+            </p>
           </div>
-          <EvidenceLinks runIds={evidence.finding3} runTitleById={runTitleById} />
-        </InsightCard>
 
-        {/* Finding 4: Explanation Quality */}
-        <InsightCard
-          number={4}
-          title="Explanation quality is necessary but not sufficient"
-          implication="Explanation without execution is a liability for an autonomous agent. Opus excels as a pair programmer (explaining what to do), but Codex excels as a delegated agent (doing it correctly). These are different product paths."
-        >
-          <p className="mb-4">
-            Opus scores {(aggregated.claude.explanation_quality || 0).toFixed(2)}/5 on explanation quality,
-            its strongest dimension and the narrowest gap with Codex.
-            But explanation quality doesn&apos;t compensate for correctness:
-          </p>
+          <EvidenceLinks runIds={EVIDENCE.finding2} />
+        </section>
 
-          <div className="mb-4 grid grid-cols-2 gap-4">
-            <div className="rounded-md border border-gray-200 p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+        {/* Finding 3 */}
+        <section>
+          <div className="mb-1 text-xs font-medium text-gray-400">Finding 3</div>
+          <h3 className="mb-3 text-lg font-semibold text-black">Explanation quality is necessary but not sufficient</h3>
+
+          <div className="mb-3 grid grid-cols-2 gap-3">
+            <div className="rounded-md border border-gray-200 bg-white p-4">
+              <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-gray-400">
                 Opus: Pair Programmer
               </div>
-              <div className="space-y-1 text-xs text-gray-600">
-                <div>Explanation: <strong>{(aggregated.claude.explanation_quality || 0).toFixed(2)}</strong>/5</div>
-                <div>Correctness: <strong>{(aggregated.claude.correctness || 0).toFixed(2)}</strong>/5</div>
+              <div className="space-y-1 text-sm text-gray-600">
+                <div>Explanation: <strong className="text-black">{CLAUDE_DIMS.explanation_quality.toFixed(2)}</strong>/5</div>
+                <div>Correctness: <strong className="text-black">{CLAUDE_DIMS.correctness.toFixed(2)}</strong>/5</div>
               </div>
-              <div className="mt-3 text-xs text-gray-500">
-                Explains well, but the code may need human correction.
-              </div>
+              <div className="mt-2 text-xs text-gray-500">Explains well; code may need human correction.</div>
             </div>
             <div className="rounded-md border border-blue-200 bg-blue-50 p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-blue-400">
+              <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-blue-500">
                 Codex: Delegated Agent
               </div>
-              <div className="space-y-1 text-xs text-blue-700">
-                <div>Explanation: <strong>{(aggregated.codex.explanation_quality || 0).toFixed(2)}</strong>/5</div>
-                <div>Correctness: <strong>{(aggregated.codex.correctness || 0).toFixed(2)}</strong>/5</div>
+              <div className="space-y-1 text-sm text-blue-800">
+                <div>Explanation: <strong>{CODEX_DIMS.explanation_quality.toFixed(2)}</strong>/5</div>
+                <div>Correctness: <strong>{CODEX_DIMS.correctness.toFixed(2)}</strong>/5</div>
               </div>
-              <div className="mt-3 text-xs text-blue-600">
-                Code works. Explanations are adequate but not exceptional.
-              </div>
+              <div className="mt-2 text-xs text-blue-600">Code works. Explanation is adequate.</div>
             </div>
           </div>
 
-          <p>
-            In the strongest explanation-vs-correctness mismatch run, explanation significantly outscored correctness.
-            This is the core risk: a developer can read a clear explanation and still get incorrect or unsafe code.
-          </p>
-          <EvidenceLinks runIds={evidence.finding4} runTitleById={runTitleById} />
-        </InsightCard>
+          <div className="rounded-md bg-gray-50 px-4 py-3">
+            <div className="text-[10px] font-medium uppercase tracking-widest text-gray-400">Product implication</div>
+            <p className="mt-1 text-sm text-gray-700">
+              Two product paths: Opus as pair programmer (explains what to do, human verifies), Codex as delegated agent (does it correctly). For autonomous delegation, correctness &gt; explanation.
+            </p>
+          </div>
 
-        {/* Finding 5: Same-Family Bias */}
-        <InsightCard
-          number={5}
-          title="Judge-family scoring skew is measurable in this run set"
-          implication="Any LLM-as-judge system needs cross-provider validation. A single-judge system from the same family as the model being evaluated will systematically inflate scores. This applies to any team building eval infrastructure."
+          <EvidenceLinks runIds={EVIDENCE.finding3} />
+        </section>
+      </div>
+
+      {/* ── Methodology (collapsed) ── */}
+      <div className="mt-10 border-t border-gray-200 pt-8">
+        <button
+          onClick={() => setShowMethodology((prev) => !prev)}
+          className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-gray-400 transition-colors hover:text-gray-600"
         >
-          <p className="mb-4">
-            Early evaluation runs used Claude Sonnet as the sole judge. When we added GPT-5.2
-            as a secondary judge, a clear pattern emerged:
-          </p>
+          <span className={`inline-block text-xs transition-transform ${showMethodology ? 'rotate-90' : ''}`}>&#9654;</span>
+          Methodology notes
+        </button>
 
-          <div className="mb-4 rounded-md border border-gray-200 p-4">
-            <div className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-400">
-              Same-family scoring bias
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Opus: Sonnet score minus GPT-5.2 score</span>
-                <span className="font-mono text-xs text-amber-600">
-                  {biasStats.claudePrimaryMinusSecondary >= 0 ? '+' : ''}
-                  {biasStats.claudePrimaryMinusSecondary.toFixed(2)}
-                </span>
+        {showMethodology && (
+          <div className="mt-6 space-y-8">
+            <section>
+              <h3 className="mb-3 text-base font-semibold text-black">Judges agree more when the question is objective</h3>
+              <p className="mb-3 text-sm text-gray-600">
+                Ship_fast runs: <strong>{AGREEMENT.shipFast}%</strong> agreement.
+                Developer_trust runs: <strong>{AGREEMENT.devTrust}%</strong>.
+              </p>
+              <div className="space-y-2">
+                {Object.entries(DIM_AGREEMENT)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([key, rate]) => {
+                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    const color = rate >= 85 ? 'text-emerald-600' : rate >= 75 ? 'text-gray-600' : 'text-amber-600';
+                    return (
+                      <div key={key} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">{label}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-20 rounded-full bg-gray-100">
+                            <div className="h-1.5 rounded-full bg-gray-800" style={{ width: `${rate}%` }} />
+                          </div>
+                          <span className={`w-12 text-right font-mono text-xs ${color}`}>{rate}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Codex: Sonnet score minus GPT-5.2 score</span>
-                <span className="font-mono text-xs text-gray-500">
-                  {biasStats.codexPrimaryMinusSecondary >= 0 ? '+' : ''}
-                  {biasStats.codexPrimaryMinusSecondary.toFixed(2)}
-                </span>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-base font-semibold text-black">Same-family scoring bias is measurable</h3>
+              <div className="mb-3 space-y-2 text-sm text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span>Opus scored by Sonnet vs GPT-5.2</span>
+                  <span className="font-mono text-xs text-amber-600">+{BIAS_STATS.claudePrimaryMinusSecondary.toFixed(2)} bias</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Codex scored by Sonnet vs GPT-5.2</span>
+                  <span className="font-mono text-xs text-gray-500">{BIAS_STATS.codexPrimaryMinusSecondary.toFixed(2)} bias</span>
+                </div>
               </div>
-            </div>
+              <p className="mb-3 text-sm text-gray-600">
+                The cross-family judge flagged hallucinated bugs, broken API contracts, and incomplete implementations that the same-family judge rated 4-5/5.
+              </p>
+              <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-500">
+                Matches published findings on LLM self-preference bias. See{' '}
+                <a href="https://arxiv.org/abs/2410.21819" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">ICLR 2025</a>{' '}and{' '}
+                <a href="https://arxiv.org/abs/2508.06709" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Spiliopoulou et al. 2025</a>.
+              </div>
+              <EvidenceLinks runIds={EVIDENCE.methodology} />
+            </section>
           </div>
-
-          <p className="mb-4">
-            The secondary judge&apos;s criticisms weren&apos;t random; they were substantive. GPT-5.2
-            flagged hallucinated bugs, broken API contracts, and incomplete implementations that
-            Sonnet rated 4-5/5.
-          </p>
-
-          <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-600">
-            <strong>Research alignment:</strong> This matches published findings on LLM self-preference
-            bias: models assign higher scores to outputs with lower perplexity (text that
-            &quot;sounds like&quot; them). See{' '}
-            <a href="https://arxiv.org/abs/2410.21819" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-              ICLR 2025
-            </a>{' '}and{' '}
-            <a href="https://arxiv.org/abs/2508.06709" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-              Spiliopoulou et al. 2025
-            </a>.
-          </div>
-          <EvidenceLinks runIds={evidence.finding5} runTitleById={runTitleById} />
-        </InsightCard>
+        )}
       </div>
 
       {/* CTA */}
-      <div className="mt-16 text-center">
-        <a
-          href="/agent-eval"
-          className="text-sm text-blue-600 transition-colors hover:text-black"
-        >
+      <div className="mt-10 text-center">
+        <a href="/agent-eval" className="text-sm text-blue-600 transition-colors hover:text-black">
           Run the evals yourself →
         </a>
       </div>

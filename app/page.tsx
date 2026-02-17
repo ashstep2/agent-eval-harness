@@ -28,7 +28,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-container flex-col justify-between px-6 py-6">
+    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-container flex-col justify-between px-6 py-4">
       {/* Hero */}
       <div>
         <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-black sm:text-4xl">

@@ -15,7 +15,7 @@ function AgentEvalResultsContent() {
   const params = useSearchParams();
   const runId = params.get('runId');
 
-  const { results, savedRuns, loadRuns } = useAgentEvalStore();
+  const { results, savedRuns, loadRuns, runsLoaded } = useAgentEvalStore();
 
   useEffect(() => { loadRuns(); }, [loadRuns]);
 
@@ -25,6 +25,14 @@ function AgentEvalResultsContent() {
     }
     return results || savedRuns[0] || null;
   }, [runId, results, savedRuns]);
+
+  if (!runsLoaded) {
+    return (
+      <div className="mx-auto max-w-lg px-6 py-20 text-center">
+        <p className="text-gray-400">Loading results...</p>
+      </div>
+    );
+  }
 
   if (!currentResults) {
     return (
