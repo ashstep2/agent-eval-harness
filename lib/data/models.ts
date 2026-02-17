@@ -5,7 +5,7 @@ export const MODELS: ModelConfig[] = [
     provider: 'openai',
     modelId: 'gpt-5.3-codex',
     displayName: 'GPT-5.3 Codex',
-    description: "OpenAI's coding-optimized variant — runs via local Codex CLI",
+    description: "OpenAI's coding-optimized variant — runs via local Codex CLI (falls back to codex-mini-latest API if CLI unavailable)",
     type: 'cli',
   },
   {
