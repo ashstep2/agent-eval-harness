@@ -70,15 +70,13 @@ export async function queryCodexCli(
   const startTime = Date.now();
 
   // Safety check: verify the CLI is installed.
-  // If not, fall back to querying codex-mini-latest via the OpenAI API.
   const installed = await codexExists();
   if (!installed) {
-    const { queryOpenAI } = await import('./openai');
-    const result = await queryOpenAI('codex-mini-latest', prompt, systemPrompt);
     return {
-      ...result,
       modelId,
+      response: '',
       latencyMs: Date.now() - startTime,
+      error: 'Codex CLI is not installed. Install it locally to test GPT-5.3 Codex.',
     };
   }
 

@@ -5,7 +5,7 @@ export const MODELS: ModelConfig[] = [
     provider: 'openai',
     modelId: 'gpt-5.3-codex',
     displayName: 'GPT-5.3 Codex',
-    description: "OpenAI's coding-optimized variant — runs via local Codex CLI (falls back to codex-mini-latest API if CLI unavailable)",
+    description: "OpenAI's coding-optimized variant — requires local Codex CLI",
     type: 'cli',
   },
   {
@@ -37,6 +37,12 @@ export const MODELS: ModelConfig[] = [
     modelId: 'claude-opus-4-6',
     displayName: 'Claude Opus 4.6',
     description: 'Latest Claude Opus model',
+  },
+  {
+    provider: 'anthropic',
+    modelId: 'claude-sonnet-4-6',
+    displayName: 'Claude Sonnet 4.6',
+    description: 'Latest Sonnet -- fast, high-capability',
   },
   {
     provider: 'anthropic',
