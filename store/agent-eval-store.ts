@@ -10,7 +10,6 @@ import {
   AgentEvalStep,
   ProgressUpdate,
 } from '@/types';
-import { DEFAULT_HEAD_TO_HEAD_MODEL_IDS } from '@/lib/data/models';
 
 function toSummary(run: AgentEvaluationResults): AgentEvaluationSummary {
   return {
@@ -71,7 +70,7 @@ interface AgentEvalState {
 
 export const useAgentEvalStore = create<AgentEvalState>((set, get) => ({
   selectedTaskId: null,
-  selectedModels: [...DEFAULT_HEAD_TO_HEAD_MODEL_IDS],
+  selectedModels: [],
   mode: 'single_shot',
   weightPreset: 'developer_trust',
   currentStep: 1,
