@@ -54,36 +54,34 @@ export function RunProgress({ progress, responses, modelIds }: RunProgressProps)
   const startTimeRef = useRef<number>(Date.now());
   const [elapsed, setElapsed] = useState(0);
 
-  // Elapsed stopwatch — start when first progress event arrives, reset between runs
-  const timerStarted = useRef(false);
+  // Elapsed stopwatch — runs independently of progress updates
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRunning = !!progress && progress.status !== 'complete';
 
   useEffect(() => {
-    // Reset when progress goes null (new eval starting)
-    if (!progress) {
-      timerStarted.current = false;
+    if (isRunning && !intervalRef.current) {
+      // Start ticking
+      startTimeRef.current = Date.now();
       setElapsed(0);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
+      intervalRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 1000);
+    } else if (!isRunning && intervalRef.current) {
+      // Stop ticking
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+  }, [isRunning]);
 
-    if (timerStarted.current) return;
-    timerStarted.current = true;
-    startTimeRef.current = Date.now();
-    intervalRef.current = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
-    }, 1000);
-
+  // Clean up on unmount
+  useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [progress]);
+  }, []);
 
   // Event-driven progress: use currentTest/totalTests from SSE
   const eventPercent = progress
