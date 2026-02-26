@@ -2,7 +2,11 @@
 
 ![Dashboard](images/dash.png)
 
-An evaluation tool for coding agents. Compares GPT-5.3 Codex and Claude Opus 4.6 on 10 real coding tasks across 6 dimensions that predict whether developers will delegate to a coding agent. Run evals yourself, see streaming results, and explore the findings.
+Head-to-head evaluation of GPT-5.3 Codex vs Claude Opus 4.6 across 10 real coding tasks, scored by cross-family dual judges to eliminate same-provider bias.
+
+**Finding:** Cross-family judging shifted rankings on 3 of 10 tasks. (If you let Claude judge Claude, scores inflate by +1.33 points.)
+
+**Live demo:** [agent-eval-harness-eta.vercel.app](https://agent-eval-harness-eta.vercel.app)
 
 ---
 

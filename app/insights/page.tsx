@@ -198,16 +198,6 @@ export default function InsightsPage() {
             <p className="text-sm text-gray-700"><strong>Trust surface &gt; capability surface.</strong> Diff-first UI, confidence signals, progressive delegation.</p>
           </div>
         </div>
-        <div className="border-t border-gray-100 px-5 py-3">
-          <a
-            href="https://github.com/ashstep2/agent-eval-harness/blob/master/PRODUCT_STRATEGY.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-blue-600 transition-colors hover:text-black"
-          >
-            Full analysis in the product strategy doc →
-          </a>
-        </div>
       </div>
 
       {/* ── DIVIDER ── */}
