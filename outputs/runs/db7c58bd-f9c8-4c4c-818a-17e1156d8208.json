@@ -1,0 +1,315 @@
+{
+  "id": "db7c58bd-f9c8-4c4c-818a-17e1156d8208",
+  "taskId": "fix-date-range-off-by-one",
+  "taskTitle": "Fix Off-by-One in Date Range Filter",
+  "mode": "single_shot",
+  "models": [
+    "gpt-5.2",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6"
+  ],
+  "weightPreset": "developer_trust",
+  "startedAt": "2026-02-18T00:14:41.149Z",
+  "completedAt": "2026-02-18T00:15:40.896Z",
+  "modelResults": {
+    "gpt-5.2": {
+      "modelId": "gpt-5.2",
+      "displayName": "GPT-5.2",
+      "response": "*** Begin Patch\n*** Update File: src/utils/dateRange.ts\n@@\n export function filterByDateRange<T extends { createdAt: Date }>(\n   items: T[],\n   range: DateRange\n ): T[] {\n   return items.filter((item) => {\n     const time = item.createdAt.getTime();\n-    return time >= range.start.getTime() && time <= range.end.getTime() + 1;\n+    return time >= range.start.getTime() && time <= range.end.getTime();\n   });\n }\n*** End Patch\n \n- Root cause: `Date.getTime()` is millisecond-precision; adding `+ 1` extends the inclusive end boundary by 1ms, unintentionally including items just after `range.end`.\n- This produces an off-by-one error at the upper bound (e.g., items at `end + 1ms` pass the filter).\n- Fix: keep the comparison inclusive (`<= end`) without widening the interval.\n- API shape and semantics remain unchanged; only the boundary math is corrected.",
+      "reasoningSummary": "Strengths: correctness (5/5): The fix correctly removes the erroneous +1 that was causing the off-by-one error, restoring proper inclusive boundary behavior without introducing new bugs. | style_adherence (5/5): The change maintains existing code style, formatting, and patterns with a minimal surgical fix that doesn't alter the function structure. | context_utilization (5/5): Properly uses existing types (T, DateRange), respects the generic constraint, and maintains the established API contract without breaking changes. | completeness (5/5): Fully addresses both requirements: fixes the boundary bug without altering API shape and provides clear root cause explanation as requested. | explanation_quality (5/5): Excellent explanation that precisely identifies the millisecond precision issue, explains the unintended consequence, and confirms the fix maintains intended behavior. | edge_case_handling (4/5): The fix handles the primary edge case (boundary precision), though the explanation could mention other potential edge cases like null dates or invalid ranges.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "The fix correctly removes the erroneous +1 that was causing the off-by-one error, restoring proper inclusive boundary behavior without introducing new bugs."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "The change maintains existing code style, formatting, and patterns with a minimal surgical fix that doesn't alter the function structure."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Properly uses existing types (T, DateRange), respects the generic constraint, and maintains the established API contract without breaking changes."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses both requirements: fixes the boundary bug without altering API shape and provides clear root cause explanation as requested."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Excellent explanation that precisely identifies the millisecond precision issue, explains the unintended consequence, and confirms the fix maintains intended behavior."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "The fix handles the primary edge case (boundary precision), though the explanation could mention other potential edge cases like null dates or invalid ranges."
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Removes the erroneous +1ms widening of the end boundary, restoring the intended inclusive range check (<= end) without changing function behavior otherwise."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Minimal, localized change consistent with existing code style and patterns; no formatting or structural deviations."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Uses the existing DateRange shape and createdAt Date field as designed; does not introduce new helpers or alter types/APIs."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Directly addresses the specified off-by-one boundary issue and explicitly states that API shape/semantics remain unchanged."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly identifies the root cause (millisecond precision and unintended interval expansion) and ties it to observable incorrect inclusions (end+1ms)."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Fix resolves the primary boundary edge case. Does not discuss other potential edge cases (e.g., start > end, timezone/date-only ranges), but those are outside the shown bug scope."
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "weightedScore": 4.85,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    },
+    "claude-sonnet-4-6": {
+      "modelId": "claude-sonnet-4-6",
+      "displayName": "Claude Sonnet 4.6",
+      "response": "Here is the patch:\n\n```diff\n--- a/src/utils/dateRange.ts\n+++ b/src/utils/dateRange.ts\n@@ -8,7 +8,7 @@ export function filterByDateRange<T extends { createdAt: Date }>(\n ): T[] {\n   return items.filter((item) => {\n     const time = item.createdAt.getTime();\n-    return time >= range.start.getTime() && time <= range.end.getTime() + 1;\n+    return time >= range.start.getTime() && time <= range.end.getTime();\n   });\n }\n```\n\n---\n\n**Root cause explanation:**\n\n- `Date.getTime()` returns milliseconds since the Unix epoch — an exact integer with no fractional component, so there is no legitimate rounding gap to compensate for.\n- Adding `+ 1` to `range.end.getTime()` silently extends the range by **one millisecond** past the caller-supplied end boundary, meaning items timestamped at `end + 1 ms` are incorrectly included.\n- This is a classic off-by-one caused by a misplaced \"fencepost\" correction — the kind that is sometimes needed with integer index ranges but is **wrong** here because the boundary is already inclusive via `<=`.\n- The correct inclusive-end check is simply `time <= range.end.getTime()`; no adjustment is needed.\n- The API shape (`DateRange` interface and function signature) is left entirely untouched — only the erroneous arithmetic is removed.",
+      "reasoningSummary": "Strengths: correctness (5/5): Removes the erroneous +1ms extension and restores the intended inclusive end boundary without changing logic elsewhere. | style_adherence (5/5): Minimal, localized diff consistent with typical TypeScript utility style; no reformatting or unnecessary changes. | context_utilization (5/5): Uses existing Date/getTime comparisons and keeps the function signature and DateRange usage intact. | completeness (5/5): Addresses both the fix and the product question by explaining the root cause rather than only patching. | explanation_quality (5/5): Clearly identifies the off-by-one mechanism (extra millisecond) and why it’s incorrect given inclusive <= semantics; easy to verify. | edge_case_handling (4/5): Fixes the primary boundary issue; however, it doesn’t discuss related real-world pitfalls (e.g., end-of-day semantics, time zones, invalid ranges where start > end), though those are outside the immediate bug.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "The fix correctly removes the erroneous +1, making the filter properly inclusive of the end boundary without extending beyond it"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "The change maintains existing code style and patterns, only removing the problematic arithmetic"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Properly preserves the API shape and existing Date/getTime() usage patterns while fixing the logic error"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the off-by-one bug fix and provides the requested root cause explanation without scope creep"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Excellent technical explanation that clearly identifies the millisecond boundary issue, explains why +1 was wrong, and relates it to classic fencepost errors"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "The fix handles the primary edge case (items at exact end boundary), though doesn't discuss potential Date precision or timezone considerations"
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Removes the erroneous +1ms extension and restores the intended inclusive end boundary without changing logic elsewhere."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Minimal, localized diff consistent with typical TypeScript utility style; no reformatting or unnecessary changes."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Uses existing Date/getTime comparisons and keeps the function signature and DateRange usage intact."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Addresses both the fix and the product question by explaining the root cause rather than only patching."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly identifies the off-by-one mechanism (extra millisecond) and why it’s incorrect given inclusive <= semantics; easy to verify."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Fixes the primary boundary issue; however, it doesn’t discuss related real-world pitfalls (e.g., end-of-day semantics, time zones, invalid ranges where start > end), though those are outside the immediate bug."
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "weightedScore": 4.85,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    },
+    "claude-opus-4-6": {
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "response": "\n\n```diff\n--- a/src/utils/dateRange.ts\n+++ b/src/utils/dateRange.ts\n@@ -11,6 +11,6 @@ export function filterByDateRange<T extends { createdAt: Date }>(\n ): T[] {\n   return items.filter((item) => {\n     const time = item.createdAt.getTime();\n-    return time >= range.start.getTime() && time <= range.end.getTime() + 1;\n+    return time >= range.start.getTime() && time <= range.end.getTime();\n   });\n }\n```\n\n**Explanation:**\n\n- **Root cause:** The upper-bound comparison added `+ 1` millisecond to `range.end.getTime()`, meaning an item whose `createdAt` was exactly 1 ms *after* the intended end of the range would incorrectly pass the filter.\n- This is a classic off-by-one error: the intent was an inclusive `<=` check on the end boundary, but the `+ 1` shifted that boundary forward by 1 ms, making it exclusive of the correct endpoint and inclusive of an extra millisecond beyond it.\n- The `+ 1` was likely introduced under the mistaken assumption that `<=` needed adjustment to be inclusive — but `<=` is already inclusive by definition.\n- The fix simply removes the `+ 1`, so the comparison is a straightforward `time <= range.end.getTime()`, which correctly includes items exactly at the end boundary and excludes anything after it.\n- The function signature and `DateRange` interface remain unchanged — no API shape alteration.",
+      "reasoningSummary": "Strengths: correctness (5/5): Removes the erroneous +1ms extension on the end boundary, restoring correct inclusive end-date filtering without changing semantics elsewhere. | style_adherence (5/5): Minimal, idiomatic change consistent with existing code style; no refactors or unnecessary churn. | context_utilization (5/5): Uses the existing Date/getTime approach and respects the existing function signature and types. | completeness (5/5): Addresses the specific off-by-one boundary bug and explicitly notes no API shape alteration, matching the task scope. | explanation_quality (5/5): Clearly identifies the root cause (end boundary shifted by 1ms) and explains why <= is already inclusive, enabling straightforward verification. | edge_case_handling (4/5): Fix correctly handles the boundary millisecond issue; however, it doesn’t discuss broader date-range pitfalls (e.g., end-of-day expectations, timezones, start>end), though those are outside the stated bug.",
+      "primary": {
+        "modelId": "claude-sonnet-4-20250514",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "The fix correctly removes the erroneous +1 that was causing items 1ms after the end boundary to be included, restoring proper inclusive end boundary behavior"
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "The change maintains existing code style and patterns, making a minimal surgical edit to the problematic line"
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Preserves the existing API shape, function signature, and DateRange interface as required, working within the established codebase structure"
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Fully addresses the off-by-one bug fix requirement while maintaining API shape constraint, with no gaps in the solution"
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Provides excellent root cause analysis explaining the boundary bug mechanics, the misconception behind the +1, and why the fix works correctly"
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Handles the primary edge case (items exactly at boundary) correctly, though doesn't explicitly address other potential edge cases like null dates or invalid ranges"
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "secondary": {
+        "modelId": "gpt-5.2",
+        "dimensionScores": [
+          {
+            "dimension": "correctness",
+            "score": 5,
+            "reasoning": "Removes the erroneous +1ms extension on the end boundary, restoring correct inclusive end-date filtering without changing semantics elsewhere."
+          },
+          {
+            "dimension": "style_adherence",
+            "score": 5,
+            "reasoning": "Minimal, idiomatic change consistent with existing code style; no refactors or unnecessary churn."
+          },
+          {
+            "dimension": "context_utilization",
+            "score": 5,
+            "reasoning": "Uses the existing Date/getTime approach and respects the existing function signature and types."
+          },
+          {
+            "dimension": "completeness",
+            "score": 5,
+            "reasoning": "Addresses the specific off-by-one boundary bug and explicitly notes no API shape alteration, matching the task scope."
+          },
+          {
+            "dimension": "explanation_quality",
+            "score": 5,
+            "reasoning": "Clearly identifies the root cause (end boundary shifted by 1ms) and explains why <= is already inclusive, enabling straightforward verification."
+          },
+          {
+            "dimension": "edge_case_handling",
+            "score": 4,
+            "reasoning": "Fix correctly handles the boundary millisecond issue; however, it doesn’t discuss broader date-range pitfalls (e.g., end-of-day expectations, timezones, start>end), though those are outside the stated bug."
+          }
+        ],
+        "overallScore": 4.833333333333333
+      },
+      "weightedScore": 4.85,
+      "dimensionAverages": {
+        "correctness": 5,
+        "style_adherence": 5,
+        "context_utilization": 5,
+        "completeness": 5,
+        "explanation_quality": 5,
+        "edge_case_handling": 4
+      },
+      "agreement": {
+        "alignedDimensions": {
+          "correctness": true,
+          "style_adherence": true,
+          "context_utilization": true,
+          "completeness": true,
+          "explanation_quality": true,
+          "edge_case_handling": true
+        },
+        "alignmentRate": 1
+      }
+    }
+  },
+  "winner": "gpt-5.2",
+  "winnerScore": 4.85,
+  "interJudgeAgreement": {
+    "alignmentRate": 1
+  }
+}
